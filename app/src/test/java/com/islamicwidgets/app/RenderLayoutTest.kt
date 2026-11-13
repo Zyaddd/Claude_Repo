@@ -116,6 +116,9 @@ class RenderLayoutTest {
         }
         File("build/snapshots").mkdirs()
         File("build/snapshots/problems.txt").writeText(problems.joinToString("\n").ifEmpty { "none" })
+        println("LAYOUT PROBLEMS: ${problems.size}")
+        problems.groupBy { it.substringBefore('/') + " " + it.substringAfter(": ").replace(Regex("\\(.*"), "") }
+            .forEach { (k, v) -> println("PROBLEM x${v.size}: $k | e.g. ${v.first()}") }
         assertTrue("Layout problems:\n" + problems.take(60).joinToString("\n"), problems.isEmpty())
     }
 }

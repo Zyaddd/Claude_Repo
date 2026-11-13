@@ -52,6 +52,13 @@ android {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showStandardStreams = true
+    }
+}
+
 dependencies {
     implementation("com.batoulapps.adhan:adhan:1.2.1")
     testImplementation("junit:junit:4.13.2")
