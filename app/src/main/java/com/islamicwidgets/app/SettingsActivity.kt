@@ -18,6 +18,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -26,6 +29,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
@@ -37,9 +41,6 @@ class SettingsActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var list: LinearLayout
     private val refreshers = mutableListOf<() -> Unit>()
-    private lateinit var prayerPreview: ImageView
-    private lateinit var datePreview: ImageView
-    private lateinit var ayahPreview: ImageView
 
     private val bg = Color.rgb(11, 21, 38)
     private val cardBg = Color.argb(20, 255, 255, 255)
@@ -166,10 +167,164 @@ class SettingsActivity : Activity() {
         parent.addView(b, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dpi(8f), 0, dpi(8f)) })
     }
 
-    private fun preview(heightDp: Float): ImageView {
-        val iv = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; adjustViewBounds = true }
-        list.addView(iv, LinearLayout.LayoutParams(-1, dpi(heightDp)).apply { setMargins(0, dpi(6f), 0, dpi(6f)) })
-        return iv
+    // ---------- Per-widget customization ----------
+
+    private var current = WidgetType.PRAYER
+    private var lightPreview = false
+    private lateinit var previewBox: LinearLayout
+    private lateinit var previewMain: ImageView
+    private lateinit var previewSmall: ImageView
+    private lateinit var previewSmallLabel: TextView
+    private val chips = mutableMapOf<WidgetType, TextView>()
+
+    private val textColors = listOf(
+        "أبيض" to 0xFFFFFFFF, "عاجي" to 0xFFF4EFE4, "ذهبي فاتح" to 0xFFFFE2A8, "ذهبي" to 0xFFD9B26A,
+        "نعناعي" to 0xFFBFF0DC, "سماوي" to 0xFFCDE7FF, "وردي" to 0xFFFFD3D6,
+        "رمادي داكن" to 0xFF2B2F36, "أسود" to 0xFF111111,
+    ).map { it.first to it.second.toInt() }
+
+    private val accentColors = listOf(
+        "ذهبي فاتح" to 0xFFFFE2A8, "ذهبي" to 0xFFD9B26A, "أبيض" to 0xFFFFFFFF, "نعناعي" to 0xFF7FD1B9,
+        "فيروزي" to 0xFF4FB3BF, "مرجاني" to 0xFFE8A87C, "عنابي" to 0xFF9E2B3A, "كحلي" to 0xFF1E3A6E,
+        "أسود" to 0xFF111111,
+    ).map { it.first to it.second.toInt() }
+
+    private val tints = listOf("زجاج داكن", "زجاج فاتح", "لون من خلفية الشاشة")
+
+    private fun style() = prefs.style(current)
+    private fun edit(change: (WidgetStyle) -> WidgetStyle) {
+        prefs.saveStyle(current, change(style()))
+    }
+
+    private fun colorName(list: List<Pair<String, Int>>, c: Int) =
+        list.firstOrNull { it.second == c }?.first ?: String.format(Locale.US, "#%06X", c and 0xFFFFFF)
+
+    private fun colorRow(parent: LinearLayout, title: String, list: List<Pair<String, Int>>, get: () -> Int, set: (Int) -> Unit) {
+        row(parent, title, { "● " + colorName(list, get()) }) {
+            val items = list.map { (n, c) ->
+                SpannableString("●  $n").apply {
+                    setSpan(ForegroundColorSpan(c), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            }.toTypedArray<CharSequence>()
+            AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle(title)
+                .setSingleChoiceItems(items, list.indexOfFirst { it.second == get() }) { d, which ->
+                    set(list[which].second)
+                    d.dismiss()
+                    refresh()
+                }
+                .setNegativeButton("إلغاء", null)
+                .show()
+        }
+    }
+
+    private fun toggleRow(parent: LinearLayout, title: String, get: () -> Boolean, set: (Boolean) -> Unit): View {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dpi(52f)
+        }
+        box.addView(label(title, 15f, textColor), LinearLayout.LayoutParams(0, -2, 1f))
+        val sw = Switch(this).apply {
+            thumbTintList = android.content.res.ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(gold, muted))
+            trackTintList = android.content.res.ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(Color.argb(120, 217, 178, 106), Color.argb(70, 255, 255, 255)))
+            contentDescription = title
+        }
+        var updating = false
+        sw.setOnCheckedChangeListener { _, checked -> if (!updating) { set(checked); refresh() } }
+        refreshers += { updating = true; sw.isChecked = get(); updating = false }
+        box.setOnClickListener { sw.toggle() }
+        box.addView(sw)
+        parent.addView(box)
+        return box
+    }
+
+    private fun seekRow(parent: LinearLayout, title: String, min: Int, max: Int, get: () -> Int, set: (Int) -> Unit) {
+        val l = label("", 15f, textColor).apply { setPadding(0, dpi(10f), 0, 0) }
+        parent.addView(l)
+        val sb = SeekBar(this).apply {
+            this.max = max - min
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            minimumHeight = dpi(44f)
+            progressTintList = android.content.res.ColorStateList.valueOf(gold)
+            thumbTintList = android.content.res.ColorStateList.valueOf(gold)
+            contentDescription = title
+        }
+        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar, p: Int, fromUser: Boolean) {
+                if (fromUser) { set(p + min); refreshPreviewsOnly() }
+            }
+            override fun onStartTrackingTouch(s: SeekBar) {}
+            override fun onStopTrackingTouch(s: SeekBar) = refresh()
+        })
+        refreshers += {
+            val v = get()
+            l.text = "$title: ${Arabic.digits(v.toString(), prefs.arabicDigits)}٪"
+            sb.progress = v - min
+        }
+        parent.addView(sb)
+    }
+
+    private fun buildCustomizer() {
+        section("تخصيص الويدجت")
+        // Widget picker chips
+        val chipRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for (t in WidgetType.values()) {
+            val chip = label(t.title, 13f, textColor, Fonts.kufiBold(this)).apply {
+                gravity = Gravity.CENTER
+                minHeight = dpi(44f)
+                isClickable = true
+                setOnClickListener { current = t; refreshPreviewsOnly() }
+            }
+            chips[t] = chip
+            chipRow.addView(chip, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dpi(3f), 0, dpi(3f), 0) })
+        }
+        list.addView(chipRow)
+
+        // Preview on a sample wallpaper
+        previewBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dpi(12f), dpi(14f), dpi(12f), dpi(14f))
+        }
+        previewMain = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; adjustViewBounds = true }
+        previewSmallLabel = label("بحجم صغير (مثل شاشة القفل)", 11f, Color.WHITE).apply { gravity = Gravity.CENTER }
+        previewSmall = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; adjustViewBounds = true }
+        previewBox.addView(previewMain, LinearLayout.LayoutParams(-1, -2))
+        previewBox.addView(previewSmallLabel, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dpi(12f), 0, dpi(6f)) })
+        previewBox.addView(previewSmall, LinearLayout.LayoutParams(dpi(170f), dpi(170f)))
+        list.addView(previewBox, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dpi(10f), 0, dpi(4f)) })
+
+        val c = card()
+        toggleRow(c, "خلفية المعاينة فاتحة", { lightPreview }) { lightPreview = it }
+        toggleRow(c, "خلفية زجاجية", { style().background }) { v -> edit { it.copy(background = v) } }
+        toggleRow(c, "إطار", { style().border }) { v -> edit { it.copy(border = v) } }
+        seekRow(c, "شفافية الخلفية", 0, 90, { style().opacity }) { v -> edit { it.copy(opacity = v) } }
+        row(c, "لون الزجاج", { tints[style().tint.coerceIn(0, 2)] }) {
+            choose("لون الزجاج", tints, style().tint) { v -> edit { it.copy(tint = v) } }
+        }
+        seekRow(c, "حجم الخط", 70, 150, { style().scale }) { v -> edit { it.copy(scale = v) } }
+        colorRow(c, "لون النص", textColors, { style().textColor }) { v -> edit { it.copy(textColor = v) } }
+        colorRow(c, "لون التمييز (اسم الصلاة واليوم)", accentColors, { style().accentColor }) { v -> edit { it.copy(accentColor = v) } }
+        toggleRow(c, "ظل النص", { style().shadow }) { v -> edit { it.copy(shadow = v) } }
+        val tapRow = toggleRow(c, "العدّ عند لمس ويدجت التسبيح", { prefs.tasbihTap }) { prefs.tasbihTap = it }
+        refreshers += { tapRow.visibility = if (current == WidgetType.TASBIH) View.VISIBLE else View.GONE }
+        list.addView(label("الخط يكبر حتى يملأ مساحته فقط، ولا يخرج عن حدود الويدجت أبداً.", 11f, muted)
+            .apply { setPadding(dpi(4f), dpi(6f), dpi(4f), 0) })
+        val c2 = card().apply { (layoutParams as LinearLayout.LayoutParams).topMargin = dpi(8f) }
+        button(c2, "تطبيق هذا التصميم على كل الويدجت") {
+            val s = style()
+            WidgetType.values().forEach { prefs.saveStyle(it, s) }
+            refresh()
+            Toast.makeText(this, "تم التطبيق على كل الويدجت.", Toast.LENGTH_SHORT).show()
+        }
+        button(c2, "استعادة التصميم الافتراضي لهذه الويدجت") {
+            prefs.saveStyle(current, WidgetStyle(true, true, 24, 0, 100, WidgetStyle.DEFAULT_TEXT, WidgetStyle.DEFAULT_ACCENT, true))
+            refresh()
+        }
     }
 
     private fun buildUi() {
@@ -177,10 +332,7 @@ class SettingsActivity : Activity() {
         list.addView(label("اضغط مطولاً على الشاشة الرئيسية ← الأدوات (Widgets) ← ويدجت إسلامية", 12f, muted)
             .apply { setPadding(dpi(4f), dpi(2f), dpi(4f), dpi(4f)) })
 
-        section("معاينة")
-        prayerPreview = preview(190f)
-        datePreview = preview(150f)
-        ayahPreview = preview(96f)
+        buildCustomizer()
 
         section("أوقات الصلاة")
         val c1 = card()
@@ -202,30 +354,8 @@ class SettingsActivity : Activity() {
             }
         }
 
-        section("المظهر")
+        section("الخط والأرقام")
         val c2 = card()
-        val opLabel = label("", 15f, textColor).apply { setPadding(0, dpi(12f), 0, 0) }
-        c2.addView(opLabel)
-        refreshers += { opLabel.text = "شفافية الزجاج: ${Arabic.digits(prefs.glassOpacity.toString(), prefs.arabicDigits)}٪" }
-        c2.addView(SeekBar(this).apply {
-            max = 55
-            progress = prefs.glassOpacity - 5
-            layoutDirection = View.LAYOUT_DIRECTION_RTL
-            minimumHeight = dpi(44f)
-            progressTintList = android.content.res.ColorStateList.valueOf(gold)
-            thumbTintList = android.content.res.ColorStateList.valueOf(gold)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar, p: Int, fromUser: Boolean) {
-                    if (fromUser) { prefs.glassOpacity = p + 5; refreshPreviewsOnly() }
-                }
-                override fun onStartTrackingTouch(s: SeekBar) {}
-                override fun onStopTrackingTouch(s: SeekBar) = refresh()
-            })
-        })
-        val tints = listOf("زجاج داكن", "زجاج فاتح", "لون من الخلفية")
-        row(c2, "لون الزجاج", { tints[prefs.glassTint.coerceIn(0, 2)] }) {
-            choose("لون الزجاج", tints, prefs.glassTint) { prefs.glassTint = it }
-        }
         val fonts = listOf("الثلث (خط مستورد)", "الرقعة", "النسخ (أميري)", "الكوفي")
         row(c2, "خط العناوين", {
             if (prefs.headingFont == 0 && Fonts.imported(this) == null) "الرقعة (لم يُستورد خط بعد)"
@@ -245,12 +375,14 @@ class SettingsActivity : Activity() {
         }
         list.addView(label("أرقام العدّاد التنازلي تتبع لغة الهاتف.", 11f, muted).apply { setPadding(dpi(4f), dpi(6f), dpi(4f), 0) })
 
-        section("إضافة إلى الشاشة الرئيسية")
+        section("إضافة الويدجت")
         val c3 = card()
         button(c3, "إضافة ويدجت أوقات الصلاة") { pin(PrayerWidget::class.java) }
         button(c3, "إضافة ويدجت التاريخ") { pin(DateWidget::class.java) }
         button(c3, "إضافة ويدجت الآية") { pin(AyahWidget::class.java) }
         button(c3, "إضافة ويدجت التسبيح") { pin(TasbihWidget::class.java) }
+        list.addView(label("شاشة القفل: في الهواتف التي تسمح بأدوات التطبيقات الأخرى على شاشة القفل (مثل Nothing OS وAndroid 16)، اضغط مطولاً على شاشة القفل ثم اختر الأدوات، وابحث عن «ويدجت إسلامية» ضمن أدوات التطبيقات الأخرى.", 12f, muted)
+            .apply { setPadding(dpi(4f), dpi(8f), dpi(4f), 0) })
 
         list.addView(label("المصادر: نص القرآن بالرسم العثماني (QuranEnc، مُطابَق مع Tanzil). الخطوط: Amiri وAref Ruqaa وNoto Kufi Arabic وReem Kufi برخصة SIL OFL. أوقات الصلاة: مكتبة Adhan.", 11f, muted)
             .apply { setPadding(dpi(4f), dpi(20f), dpi(4f), 0) })
@@ -276,11 +408,35 @@ class SettingsActivity : Activity() {
 
     private fun refreshPreviewsOnly() {
         refreshers.forEach { it() }
-        val w = (resources.displayMetrics.widthPixels / resources.displayMetrics.density) - 32f
-        val pw = w.coerceAtMost(420f)
-        prayerPreview.setImageBitmap(Render.prayer(this, prefs, pw, 190f))
-        datePreview.setImageBitmap(Render.date(this, prefs, pw, 150f))
-        ayahPreview.setImageBitmap(Render.ayah(this, prefs, pw, 96f))
+        for ((t, chip) in chips) {
+            val on = t == current
+            chip.background = rounded(if (on) gold else cardBg, 14f, if (on) null else Color.argb(26, 255, 255, 255))
+            chip.setTextColor(if (on) bg else textColor)
+        }
+        previewBox.background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            if (lightPreview) intArrayOf(Color.rgb(246, 240, 228), Color.rgb(214, 200, 176))
+            else intArrayOf(Color.rgb(20, 33, 61), Color.rgb(60, 79, 126), Color.rgb(185, 130, 111)),
+        ).apply { cornerRadius = dp(20f) }
+        val w = ((resources.displayMetrics.widthPixels / resources.displayMetrics.density) - 56f).coerceAtMost(400f)
+        val main = when (current) {
+            WidgetType.PRAYER -> Render.prayer(this, prefs, w, 190f)
+            WidgetType.DATE -> Render.date(this, prefs, w, 150f)
+            WidgetType.AYAH -> Render.ayah(this, prefs, w, 96f)
+            WidgetType.TASBIH -> Render.tasbih(this, prefs, 170f, 170f)
+        }
+        previewMain.setImageBitmap(main)
+        val showSmall = current != WidgetType.TASBIH
+        previewSmall.visibility = if (showSmall) View.VISIBLE else View.GONE
+        previewSmallLabel.visibility = previewSmall.visibility
+        if (showSmall) {
+            val small = when (current) {
+                WidgetType.PRAYER -> Render.prayer(this, prefs, 170f, 170f)
+                WidgetType.DATE -> Render.date(this, prefs, 170f, 170f)
+                else -> Render.ayah(this, prefs, 170f, 170f)
+            }
+            previewSmall.setImageBitmap(small)
+        }
     }
 
     private fun refresh() {

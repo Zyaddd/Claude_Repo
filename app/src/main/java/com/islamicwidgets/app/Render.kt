@@ -6,7 +6,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
@@ -24,29 +23,34 @@ import kotlin.math.ceil
 import kotlin.math.min
 import kotlin.math.sqrt
 
-/** Colors of the glass style. Text is always light, with a soft shadow, so it reads on any wallpaper. */
-class Glass(val fill: Int) {
-    val stroke = Color.argb(82, 255, 255, 255)
-    val highlight = Color.argb(90, 255, 255, 255)
-    val text = Color.WHITE
-    val muted = Color.argb(217, 255, 255, 255)
-    val accent = Color.rgb(255, 226, 168)
-    val track = Color.argb(64, 255, 255, 255)
-    val chip = Color.argb(56, 255, 255, 255)
-    val chipStroke = Color.argb(153, 255, 255, 255)
+/** Resolved colors for one widget, derived from its [WidgetStyle]. */
+class Look(ctx: Context, val style: WidgetStyle) {
+    val scale = style.scale.coerceIn(70, 150) / 100f
+    val text = style.textColor
+    val accent = style.accentColor
+    val muted = withAlpha(text, 217)
+    val track = withAlpha(text, 64)
+    val chip = withAlpha(text, 46)
+    val chipStroke = withAlpha(text, 150)
+    val stroke = withAlpha(text, 82)
+    val fill: Int? = if (!style.background) null else {
+        val a = style.opacity.coerceIn(0, 90) * 255 / 100
+        val rgb = when (style.tint) {
+            1 -> Color.rgb(255, 255, 255)
+            2 -> wallpaperTint(ctx) ?: Color.rgb(14, 20, 38)
+            else -> Color.rgb(14, 20, 38)
+        }
+        Color.argb(a, Color.red(rgb), Color.green(rgb), Color.blue(rgb))
+    }
+
+    /** Light text gets a dark shadow, dark text a light one. */
+    val shadowColor: Int? = if (!style.shadow) null
+    else if (luminance(text) > 0.5f) Color.argb(100, 0, 0, 0) else Color.argb(110, 255, 255, 255)
 
     companion object {
-        fun from(ctx: Context, prefs: Prefs): Glass {
-            val a = (prefs.glassOpacity.coerceIn(5, 60) * 255 / 100)
-            val rgb = when (prefs.glassTint) {
-                1 -> Color.rgb(255, 255, 255)
-                2 -> wallpaperTint(ctx) ?: Color.rgb(14, 20, 38)
-                else -> Color.rgb(14, 20, 38)
-            }
-            return Glass(Color.argb(a, Color.red(rgb), Color.green(rgb), Color.blue(rgb)))
-        }
+        fun withAlpha(c: Int, a: Int) = Color.argb(a * Color.alpha(c) / 255, Color.red(c), Color.green(c), Color.blue(c))
+        fun luminance(c: Int) = (0.299f * Color.red(c) + 0.587f * Color.green(c) + 0.114f * Color.blue(c)) / 255f
 
-        /** Main wallpaper color, darkened so light text stays readable. */
         private fun wallpaperTint(ctx: Context): Int? {
             if (Build.VERSION.SDK_INT < 27) return null
             return try {
@@ -61,49 +65,50 @@ class Glass(val fill: Int) {
 }
 
 /**
- * Draws a widget into a bitmap. All sizes are in dp; [px] converts.
+ * Draws a widget into a bitmap. All sizes are in dp.
  * Text is placed by its measured ink bounds, so tall calligraphy (e.g. Thuluth alif)
- * is always fitted inside its box and never clipped or overlapping.
+ * is fitted inside its box and never clipped or overlapping.
  */
-class Painter(ctx: Context, val w: Float, val h: Float) {
-    private val density: Float
+class Painter(ctx: Context, val w: Float, val h: Float, val look: Look) {
     val bitmap: Bitmap
     val canvas: Canvas
 
     init {
         var d = ctx.resources.displayMetrics.density
-        // Keep each widget bitmap under ~6 MB.
         val bytes = w * d * h * d * 4f
-        if (bytes > 6_000_000f) d *= sqrt(6_000_000f / bytes)
-        density = d
+        if (bytes > 6_000_000f) d *= sqrt(6_000_000f / bytes) // keep each bitmap under ~6 MB
         bitmap = Bitmap.createBitmap(
             ceil(w * d).toInt().coerceAtLeast(1),
             ceil(h * d).toInt().coerceAtLeast(1),
             Bitmap.Config.ARGB_8888,
         )
         canvas = Canvas(bitmap)
-        canvas.scale(d, d) // from here on, draw in dp
+        canvas.scale(d, d)
     }
 
     private val tmp = Rect()
 
-    fun textPaint(tf: Typeface, sizeDp: Float, color: Int, shadow: Boolean = true): TextPaint =
+    /** Ink boxes of everything drawn (and areas reserved for overlays), for layout checks in tests. */
+    val drawn = mutableListOf<Pair<String, RectF>>()
+    fun reserve(name: String, r: RectF) { drawn += name to RectF(r) }
+
+    fun paint(tf: Typeface, sizeDp: Float, color: Int): TextPaint =
         TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.LINEAR_TEXT_FLAG).apply {
             typeface = tf
             textSize = sizeDp
             this.color = color
+            @Suppress("DEPRECATION")
             textLocale = Locale("ar")
             textAlign = Paint.Align.LEFT
-            if (shadow) setShadowLayer(1.5f, 0f, 0.8f, Color.argb(90, 0, 0, 0))
+            look.shadowColor?.let { setShadowLayer(1.5f, 0f, 0.8f, it) }
         }
 
-    /** Ink bounds of [text] at the paint's size, relative to the drawing origin. */
     fun ink(p: Paint, text: String): Rect {
         p.getTextBounds(text, 0, text.length, tmp)
         return Rect(tmp)
     }
 
-    /** Shrinks the paint's size (from its current size down to [minSize]) until the ink fits [maxW]x[maxH]. */
+    /** Shrinks the paint's size down to [minSize] until the ink fits [maxW]x[maxH]. */
     fun fit(p: Paint, text: String, maxW: Float, maxH: Float, minSize: Float) {
         while (p.textSize > minSize) {
             val r = ink(p, text)
@@ -114,7 +119,7 @@ class Painter(ctx: Context, val w: Float, val h: Float) {
 
     enum class H { LEFT, CENTER, RIGHT }
 
-    /** Draws [text] with its ink aligned horizontally per [hAlign] and centred vertically in [box]. Returns ink width. */
+    /** Draws [text] with its ink aligned per [hAlign] and centred vertically in [box]. Returns ink width. */
     fun drawInk(p: Paint, text: String, box: RectF, hAlign: H): Float {
         val r = ink(p, text)
         val x = when (hAlign) {
@@ -124,24 +129,30 @@ class Painter(ctx: Context, val w: Float, val h: Float) {
         }
         val y = box.centerY() - (r.top + r.bottom) / 2f
         canvas.drawText(text, x, y, p)
+        drawn += text to RectF(x + r.left, y + r.top, x + r.right, y + r.bottom)
         return r.width().toFloat()
     }
 
-    fun card(g: Glass, radius: Float = min(28f, h / 2f)) {
+    /** Fits and draws in one step. */
+    fun text(tf: Typeface, size: Float, color: Int, s: String, box: RectF, hAlign: H, minSize: Float = 7f): Float {
+        val p = paint(tf, size, color)
+        fit(p, s, box.width(), box.height(), minSize)
+        return drawInk(p, s, box, hAlign)
+    }
+
+    /** Background and border. The border is one uniform 1 dp stroke on all four sides. */
+    fun card() {
+        val radius = min(28f, min(w, h) / 2f)
         val rect = RectF(0.5f, 0.5f, w - 0.5f, h - 0.5f)
-        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = g.fill }
-        canvas.drawRoundRect(rect, radius, radius, fill)
-        // soft highlight along the top edge
-        val clip = Path().apply { addRoundRect(rect, radius, radius, Path.Direction.CW) }
-        canvas.save()
-        canvas.clipPath(clip)
-        val hl = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = g.highlight; strokeWidth = 1f }
-        canvas.drawLine(radius, 1.2f, w - radius, 1.2f, hl)
-        canvas.restore()
-        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = 1f; color = g.stroke
+        look.fill?.let { c ->
+            canvas.drawRoundRect(rect, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = c })
         }
-        canvas.drawRoundRect(rect, radius, radius, stroke)
+        if (look.style.border) {
+            val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE; strokeWidth = 1f; color = look.stroke
+            }
+            canvas.drawRoundRect(rect, radius, radius, stroke)
+        }
     }
 
     /** Eight-pointed star (two overlapping squares) centred at (cx, cy). */
@@ -157,137 +168,211 @@ class Painter(ctx: Context, val w: Float, val h: Float) {
     }
 }
 
-object Render {
-    const val PAD = 16f
+/** Where the live Chronometer sits over the prayer bitmap. */
+class PrayerGeom(
+    val small: Boolean,
+    /** Chronometer text size, dp. */
+    val chronoSize: Float,
+    /** Wide: left/top margins. Small: bottom margin (centred horizontally). */
+    val chronoLeft: Float,
+    val chronoTop: Float,
+    val chronoBottom: Float,
+)
 
-    // Prayer widget layout (dp). The live countdown is a Chronometer placed over the bitmap
-    // by res/layout/widget_prayer.xml at left = CHRONO_LEFT, top = CHRONO_TOP.
-    const val CHRONO_LEFT = 18f
-    const val CHRONO_TOP = 30f
-    private const val GRID_H = 52f
-    private const val TOP_H = 86f
+object Render {
+    /** The painter used by the most recent render call (read by layout tests). */
+    var last: Painter? = null
+        private set
+
+    private fun painter(ctx: Context, w: Float, h: Float, look: Look) = Painter(ctx, w, h, look).also { last = it }
+
+    private const val PAD = 16f
+    const val WIDE_MIN_W = 230f
+
+    // Positions used by the layout XML when margins can't be set at runtime (Android < 12).
+    const val FIXED_TOP = 30f
+    const val FIXED_LEFT = 18f
+    const val FIXED_BOTTOM = 30f
+    const val FIXED_SIZE_WIDE = 28f
+    const val FIXED_SIZE_SMALL = 26f
+
+    private val dynamic get() = Build.VERSION.SDK_INT >= 31
+
+    fun prayerGeom(w: Float, h: Float, look: Look): PrayerGeom {
+        val s = look.scale
+        return if (w >= WIDE_MIN_W) {
+            val labelSize = (11f * s).coerceIn(8f, 15f)
+            PrayerGeom(
+                small = false,
+                chronoSize = if (dynamic) (28f * s).coerceIn(18f, 40f) else FIXED_SIZE_WIDE,
+                chronoLeft = FIXED_LEFT,
+                chronoTop = if (dynamic) PAD + labelSize * 1.3f + 1f else FIXED_TOP,
+                chronoBottom = 0f,
+            )
+        } else {
+            val small = (12f * s).coerceIn(8f, 15f)
+            PrayerGeom(
+                small = true,
+                chronoSize = if (dynamic) (26f * s).coerceIn(16f, 36f) else FIXED_SIZE_SMALL,
+                chronoLeft = 0f,
+                chronoTop = 0f,
+                chronoBottom = if (dynamic) 12f + small * 1.3f + 2f else FIXED_BOTTOM,
+            )
+        }
+    }
 
     fun prayer(ctx: Context, prefs: Prefs, w: Float, h: Float, now: Instant = Instant.now()): Bitmap {
-        val pt = Painter(ctx, w, h)
-        val g = Glass.from(ctx, prefs)
+        val look = Look(ctx, prefs.style(WidgetType.PRAYER))
+        val pt = painter(ctx, w, h, look)
+        val geo = prayerGeom(w, h, look)
+        val s = look.scale
         val ar = prefs.arabicDigits
         val st = Prayer.state(prefs, now)
-        pt.card(g)
-
-        val showGrid = h >= 150f
-        val showBar = h >= PAD + TOP_H + 28f + GRID_H + PAD
-        val topH = when {
-            showBar -> TOP_H
-            showGrid -> h - PAD - GRID_H - 8f - PAD
-            else -> h - 2 * PAD
-        }.coerceAtLeast(60f)
-
-        // Left block: label, (chronometer overlay), city
-        val leftW = (w - 2 * PAD) * 0.42f
-        val label = pt.textPaint(Fonts.kufi(ctx), 11f, g.muted)
-        pt.fit(label, "الصلاة القادمة بعد", leftW, 14f, 8f)
-        pt.drawInk(label, "الصلاة القادمة بعد", RectF(CHRONO_LEFT, PAD, CHRONO_LEFT + leftW, PAD + 13f), Painter.H.LEFT)
-        val city = pt.textPaint(Fonts.kufi(ctx), 11f, g.muted)
-        pt.fit(city, prefs.cityName, leftW, 14f, 8f)
-        pt.drawInk(city, prefs.cityName, RectF(CHRONO_LEFT, CHRONO_TOP + 37f, CHRONO_LEFT + leftW, CHRONO_TOP + 50f), Painter.H.LEFT)
-
-        // Right block: next prayer name in the heading font
         val name = Arabic.prayerNames[st.nextIndex]
-        val nameBox = RectF(PAD + leftW + 12f, PAD, w - PAD, PAD + topH)
-        val np = pt.textPaint(Fonts.heading(ctx, prefs), 44f, g.accent)
-        pt.fit(np, name, nameBox.width(), nameBox.height(), 14f)
-        pt.drawInk(np, name, nameBox, Painter.H.RIGHT)
+        val heading = Fonts.heading(ctx, prefs)
+        val kufi = Fonts.kufi(ctx)
+        pt.card()
+        val chronoLine = geo.chronoSize * 1.18f
+        val chronoW = geo.chronoSize * 4.3f // width of "0:00:00"
+        if (geo.small) {
+            pt.reserve("countdown", RectF(w / 2f - chronoW / 2f, h - geo.chronoBottom - chronoLine, w / 2f + chronoW / 2f, h - geo.chronoBottom))
+        } else {
+            pt.reserve("countdown", RectF(geo.chronoLeft, geo.chronoTop, geo.chronoLeft + chronoW, geo.chronoTop + chronoLine))
+        }
+
+        if (geo.small) {
+            // Name on top, countdown (Chronometer overlay) below, then time · city.
+            val smallSize = if (dynamic) (12f * s).coerceIn(8f, 15f) else 12f
+            val info = "${Arabic.time12(Prayer.localTime(st.nextAt), ar)} · ${prefs.cityName}"
+            pt.text(kufi, smallSize, look.muted, info, RectF(10f, h - 12f - smallSize * 1.3f, w - 10f, h - 12f), Painter.H.CENTER)
+            val nameBottom = h - geo.chronoBottom - chronoLine - 2f
+            pt.text(heading, 44f * s, look.accent, name, RectF(12f, 10f, w - 12f, nameBottom), Painter.H.CENTER, 12f)
+            return pt.bitmap
+        }
+
+        val labelSize = if (dynamic) (11f * s).coerceIn(8f, 15f) else 11f
+        val gridH = (52f * s).coerceIn(44f, 66f)
+        val cityTop = geo.chronoTop + chronoLine + 2f
+        val blockBottom = cityTop + labelSize * 1.3f
+        val showGrid = h >= blockBottom + 8f + gridH + PAD
+        val showBar = h >= blockBottom + 26f + gridH + PAD
+        val showCity = showGrid || blockBottom <= h - 10f
+        val nameBottom = when {
+            showBar -> h - PAD - gridH - 26f
+            showGrid -> h - PAD - gridH - 8f
+            else -> h - PAD
+        }
+
+        val leftW = ((w - 2 * PAD) * 0.42f).coerceAtLeast(geo.chronoSize * 4.4f).coerceAtMost((w - 2 * PAD) * 0.56f)
+        val left = geo.chronoLeft
+        pt.text(kufi, labelSize, look.muted, "الصلاة القادمة بعد", RectF(left, PAD, left + leftW, PAD + labelSize * 1.2f), Painter.H.LEFT)
+        if (showCity) {
+            pt.text(kufi, labelSize, look.muted, prefs.cityName, RectF(left, cityTop, left + leftW, blockBottom), Painter.H.LEFT)
+        }
+        val nameBox = RectF(PAD + leftW + 12f, PAD, w - PAD, nameBottom.coerceAtLeast(PAD + 30f))
+        pt.text(heading, 44f * s, look.accent, name, nameBox, Painter.H.RIGHT, 12f)
 
         if (showBar) {
-            val gridTop = h - PAD - GRID_H
-            val y = (PAD + topH + gridTop) / 2f
-            val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = g.track }
+            val gridTop = h - PAD - gridH
+            val y = (nameBottom + gridTop) / 2f
             val l = PAD + 2f
             val r = w - PAD - 2f
-            pt.canvas.drawRoundRect(RectF(l, y - 2f, r, y + 2f), 2f, 2f, track)
+            pt.canvas.drawRoundRect(RectF(l, y - 2f, r, y + 2f), 2f, 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = look.track })
             val fillW = (r - l) * st.progress(now)
             if (fillW > 0f) {
-                val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = g.accent }
-                pt.canvas.drawRoundRect(RectF(r - fillW, y - 2f, r, y + 2f), 2f, 2f, fill)
+                pt.canvas.drawRoundRect(RectF(r - fillW, y - 2f, r, y + 2f), 2f, 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = look.accent })
             }
         }
 
         if (showGrid) {
-            val top = h - PAD - GRID_H
+            val top = h - PAD - gridH
             val gap = 6f
             val cw = (w - 2 * PAD - 4 * gap) / 5f
+            val nameSize = (11f * s).coerceIn(8f, 15f)
+            val timeSize = (14f * s).coerceIn(10f, 19f)
             for (i in 0 until 5) {
                 val right = w - PAD - i * (cw + gap)
-                val cell = RectF(right - cw, top, right, top + GRID_H)
+                val cell = RectF(right - cw, top, right, top + gridH)
                 val isNext = i == st.nextIndex
                 if (isNext) {
-                    val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = g.chip }
-                    pt.canvas.drawRoundRect(cell, 14f, 14f, bg)
-                    val sk = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        style = Paint.Style.STROKE; strokeWidth = 1f; color = g.chipStroke
-                    }
-                    pt.canvas.drawRoundRect(cell, 14f, 14f, sk)
+                    pt.canvas.drawRoundRect(cell, 14f, 14f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = look.chip })
+                    pt.canvas.drawRoundRect(cell, 14f, 14f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        style = Paint.Style.STROKE; strokeWidth = 1f; color = look.chipStroke
+                    })
                 }
-                val np2 = pt.textPaint(Fonts.kufi(ctx), 11f, if (isNext) g.accent else g.muted)
-                pt.fit(np2, Arabic.prayerNames[i], cw - 6f, 14f, 7f)
-                pt.drawInk(np2, Arabic.prayerNames[i], RectF(cell.left, top + 8f, cell.right, top + 22f), Painter.H.CENTER)
-                val t = Arabic.time12(Prayer.localTime(st.nextTimes.times[i]), ar)
-                val tp = pt.textPaint(Fonts.kufiBold(ctx), 14f, g.text)
-                pt.fit(tp, t, cw - 6f, 14f, 8f)
-                pt.drawInk(tp, t, RectF(cell.left, top + 28f, cell.right, top + 43f), Painter.H.CENTER)
+                val half = gridH / 2f
+                pt.text(kufi, nameSize, if (isNext) look.accent else look.muted, Arabic.prayerNames[i],
+                    RectF(cell.left + 3f, top + 6f, cell.right - 3f, top + half - 1f), Painter.H.CENTER)
+                pt.text(Fonts.kufiBold(ctx), timeSize, look.text, Arabic.time12(Prayer.localTime(st.nextTimes.times[i]), ar),
+                    RectF(cell.left + 3f, top + half + 1f, cell.right - 3f, top + gridH - 6f), Painter.H.CENTER)
             }
         }
         return pt.bitmap
     }
 
     fun date(ctx: Context, prefs: Prefs, w: Float, h: Float, today: LocalDate = LocalDate.now()): Bitmap {
-        val pt = Painter(ctx, w, h)
-        val g = Glass.from(ctx, prefs)
+        val look = Look(ctx, prefs.style(WidgetType.DATE))
+        val pt = painter(ctx, w, h, look)
+        val s = look.scale
         val ar = prefs.arabicDigits
-        pt.card(g)
+        pt.card()
+        val day = Arabic.weekdays.getValue(today.dayOfWeek)
+        val (hd, hm, hy) = Prayer.hijri(prefs, today)
+        val month = Arabic.hijriMonths[hm - 1]
+        val greg = Arabic.digits("${today.dayOfMonth} ${Arabic.gregorianMonths[today.monthValue - 1]} ${today.year} م", ar)
+        val heading = Fonts.heading(ctx, prefs)
+
+        if (w < WIDE_MIN_W) {
+            // Small: weekday, Hijri date, Gregorian date stacked and centred.
+            val gSize = (11f * s).coerceIn(8f, 15f)
+            val hSize = (16f * s).coerceIn(10f, 22f)
+            val gBox = RectF(10f, h - 12f - gSize * 1.3f, w - 10f, h - 12f)
+            val hBox = RectF(10f, gBox.top - 4f - hSize * 1.4f, w - 10f, gBox.top - 4f)
+            pt.text(Fonts.kufi(ctx), gSize, look.muted, greg, gBox, Painter.H.CENTER)
+            pt.text(Fonts.amiriBold(ctx), hSize, look.text, Arabic.digits("$hd $month", ar), hBox, Painter.H.CENTER)
+            pt.text(heading, 46f * s, look.accent, day, RectF(12f, 10f, w - 12f, hBox.top - 2f), Painter.H.CENTER, 12f)
+            return pt.bitmap
+        }
+
         val padX = 22f
         val padY = 14f
-        val row2H = 22f
+        val row2H = (22f * s).coerceIn(18f, 30f)
         val row1 = RectF(padX, padY, w - padX, h - padY - row2H - 6f)
 
-        // Weekday (heading font) on the right
-        val day = Arabic.weekdays.getValue(today.dayOfWeek)
-        val wp = pt.textPaint(Fonts.heading(ctx, prefs), 46f, g.accent)
-        pt.fit(wp, day, row1.width() * 0.5f, row1.height(), 14f)
-        val dayInkW = pt.drawInk(wp, day, RectF(row1.left, row1.top, row1.right, row1.bottom), Painter.H.RIGHT)
+        val wp = pt.paint(heading, 46f * s, look.accent)
+        pt.fit(wp, day, row1.width() * 0.5f, row1.height(), 12f)
+        val dayInkW = pt.drawInk(wp, day, row1, Painter.H.RIGHT)
 
-        // Hijri group on the left: big day number, then month and year
-        val (hd, hm, hy) = Prayer.hijri(prefs, today)
         val avail = row1.width() - dayInkW - 14f
         val numText = Arabic.digits(hd.toString(), ar)
-        val month = Arabic.hijriMonths[hm - 1]
         val year = Arabic.digits("$hy هـ", ar)
-        val numP = pt.textPaint(Fonts.amiriBold(ctx), min(52f, row1.height() * 0.62f), g.text)
-        pt.fit(numP, numText, avail * 0.3f, row1.height() * 0.62f, 12f)
+        val numP = pt.paint(Fonts.amiriBold(ctx), min(52f * s, row1.height() * 0.62f), look.text)
+        pt.fit(numP, numText, avail * 0.3f, row1.height() * 0.62f, 10f)
         val numW = pt.ink(numP, numText).width().toFloat()
-        val mP = pt.textPaint(Fonts.amiriBold(ctx), 19f, g.text)
-        pt.fit(mP, month, (avail - numW - 8f).coerceAtLeast(10f), row1.height() * 0.4f, 9f)
-        val yP = pt.textPaint(Fonts.kufi(ctx), 12f, g.muted)
-        pt.fit(yP, year, (avail - numW - 8f).coerceAtLeast(10f), 14f, 8f)
+        val colMax = (avail - numW - 8f).coerceAtLeast(10f)
+        val mP = pt.paint(Fonts.amiriBold(ctx), 19f * s, look.text)
+        pt.fit(mP, month, colMax, row1.height() * 0.4f, 8f)
+        val yP = pt.paint(Fonts.kufi(ctx), (12f * s).coerceIn(8f, 16f), look.muted)
+        pt.fit(yP, year, colMax, row1.height() * 0.25f, 7f)
         val colW = maxOf(pt.ink(mP, month).width(), pt.ink(yP, year).width()).toFloat()
         val groupRight = row1.left + colW + 8f + numW
         val cy = row1.centerY()
+        val mH = mP.textSize * 1.25f
+        val yH = yP.textSize * 1.25f
+        val colTop = cy - (mH + yH) / 2f
         pt.drawInk(numP, numText, RectF(groupRight - numW, row1.top, groupRight, row1.bottom), Painter.H.RIGHT)
         val colRight = groupRight - numW - 8f
-        pt.drawInk(mP, month, RectF(row1.left, cy - 20f, colRight, cy + 2f), Painter.H.RIGHT)
-        pt.drawInk(yP, year, RectF(row1.left, cy + 5f, colRight, cy + 18f), Painter.H.RIGHT)
+        pt.drawInk(mP, month, RectF(row1.left, colTop, colRight, colTop + mH), Painter.H.RIGHT)
+        pt.drawInk(yP, year, RectF(row1.left, colTop + mH, colRight, colTop + mH + yH), Painter.H.RIGHT)
 
-        // Gregorian date between ornaments
-        val greg = Arabic.digits("${today.dayOfMonth} ${Arabic.gregorianMonths[today.monthValue - 1]} ${today.year} م", ar)
-        val gp = pt.textPaint(Fonts.kufi(ctx), 13f, g.text)
-        pt.fit(gp, greg, w - 2 * padX - 80f, 16f, 8f)
         val gy = h - padY - row2H / 2f
-        val gw = pt.drawInk(gp, greg, RectF(padX, gy - 8f, w - padX, gy + 8f), Painter.H.CENTER)
-        val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(102, 255, 255, 255); strokeWidth = 1f }
+        val gw = pt.text(Fonts.kufi(ctx), (13f * s).coerceIn(9f, 18f), look.text, greg,
+            RectF(padX + 40f, gy - row2H / 2f, w - padX - 40f, gy + row2H / 2f), Painter.H.CENTER)
+        val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Look.withAlpha(look.text, 102); strokeWidth = 1f }
         val sL = w / 2f - gw / 2f - 12f
         val sR = w / 2f + gw / 2f + 12f
-        pt.star(sL, gy, 7f, g.accent)
-        pt.star(sR, gy, 7f, g.accent)
+        pt.star(sL, gy, 7f, look.accent)
+        pt.star(sR, gy, 7f, look.accent)
         if (sL - 10f > padX) pt.canvas.drawLine(padX, gy, sL - 10f, gy, line)
         if (sR + 10f < w - padX) pt.canvas.drawLine(sR + 10f, gy, w - padX, gy, line)
         return pt.bitmap
@@ -297,36 +382,37 @@ object Render {
         Math.floorMod(today.dayOfYear + today.year + prefs.ayahOffset, Ayat.list.size)
 
     fun ayah(ctx: Context, prefs: Prefs, w: Float, h: Float, today: LocalDate = LocalDate.now()): Bitmap {
-        val pt = Painter(ctx, w, h)
-        val g = Glass.from(ctx, prefs)
-        pt.card(g, min(28f, h / 2f))
+        val look = Look(ctx, prefs.style(WidgetType.AYAH))
+        val pt = painter(ctx, w, h, look)
+        val s = look.scale
+        pt.card()
         val a = Ayat.list[ayahIndex(prefs, today)]
-        val padX = 18f
+        val padX = if (w < WIDE_MIN_W) 12f else 18f
         val padY = 8f
-        val refH = 15f
+        val refSize = (10.5f * s).coerceIn(7f, 14f)
+        val refH = refSize * 1.4f
         val ref = "سورة ${a.surah} · ${Arabic.digits(a.number.toString(), prefs.arabicDigits)}"
-        val rp = pt.textPaint(Fonts.kufi(ctx), 10.5f, g.muted)
-        pt.fit(rp, ref, w - 2 * padX, 13f, 7f)
-        pt.drawInk(rp, ref, RectF(padX, h - padY - refH + 1f, w - padX, h - padY), Painter.H.CENTER)
+        pt.text(Fonts.kufi(ctx), refSize, look.muted, ref, RectF(padX, h - padY - refH, w - padX, h - padY), Painter.H.CENTER)
 
         val text = "﴿" + a.text + "﴾"
         val span = SpannableString(text)
-        span.setSpan(ForegroundColorSpan(g.accent), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        span.setSpan(ForegroundColorSpan(g.accent), text.length - 1, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        span.setSpan(ForegroundColorSpan(look.accent), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        span.setSpan(ForegroundColorSpan(look.accent), text.length - 1, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         val maxW = (w - 2 * padX).toInt().coerceAtLeast(20)
         val maxH = h - 2 * padY - refH - 2f
-        val tp = pt.textPaint(Fonts.quran(ctx), 22f, g.text)
+        val maxLines = if (h > 140f) 7 else 3
+        val tp = pt.paint(Fonts.quran(ctx), 22f * s, look.text)
         var layout: StaticLayout
         while (true) {
             layout = StaticLayout.Builder.obtain(span, 0, span.length, tp, maxW)
                 .setAlignment(Layout.Alignment.ALIGN_CENTER)
                 .setIncludePad(false)
-                .setLineSpacing(0f, 1f)
                 .build()
-            if ((layout.height <= maxH && layout.lineCount <= 3) || tp.textSize <= 9f) break
+            if ((layout.height <= maxH && layout.lineCount <= maxLines) || tp.textSize <= 8f) break
             tp.textSize -= 0.5f
         }
         val top = padY + (maxH - layout.height) / 2f
+        pt.reserve("verse", RectF(padX, top, padX + maxW, top + layout.height))
         pt.canvas.save()
         pt.canvas.translate(padX, top)
         layout.draw(pt.canvas)
@@ -342,31 +428,29 @@ object Render {
     )
 
     fun tasbih(ctx: Context, prefs: Prefs, w: Float, h: Float): Bitmap {
-        val pt = Painter(ctx, w, h)
-        val g = Glass.from(ctx, prefs)
-        pt.card(g)
+        val look = Look(ctx, prefs.style(WidgetType.TASBIH))
+        val pt = painter(ctx, w, h, look)
+        val s = look.scale
+        pt.card()
         val count = prefs.tasbihCount.coerceIn(0, 99)
         val phase = phases.last { count >= it.first }
         val inPhase = count - phase.first
-        val phraseH = 26f
-        val r = (min(w - 32f, h - phraseH - 34f) / 2f).coerceAtLeast(16f)
+        val phraseH = (24f * s).coerceIn(16f, 34f)
+        val r = (min(w - 32f, h - phraseH - 34f) / 2f).coerceAtLeast(14f)
         val cx = w / 2f
-        val cy = 12f + r + (h - phraseH - 24f - 2 * r) / 2f
+        val cy = 12f + r + ((h - phraseH - 24f - 2 * r) / 2f).coerceAtLeast(0f)
         val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = 5f; color = g.track; strokeCap = Paint.Cap.ROUND
+            style = Paint.Style.STROKE; strokeWidth = 5f; color = look.track; strokeCap = Paint.Cap.ROUND
         }
         val oval = RectF(cx - r, cy - r, cx + r, cy + r)
+        pt.reserve("ring", RectF(cx - r - 2.5f, cy - r - 2.5f, cx + r + 2.5f, cy + r + 2.5f))
         pt.canvas.drawArc(oval, 0f, 360f, false, ring)
-        ring.color = g.accent
+        ring.color = look.accent
         val sweep = 360f * inPhase / phase.second
         if (sweep > 0f) pt.canvas.drawArc(oval, -90f, sweep, false, ring)
-        val num = Arabic.digits(inPhase.toString(), prefs.arabicDigits)
-        val np = pt.textPaint(Fonts.kufiBold(ctx), 24f, g.text)
-        pt.fit(np, num, r * 1.3f, r * 0.8f, 10f)
-        pt.drawInk(np, num, oval, Painter.H.CENTER)
-        val pp = pt.textPaint(Fonts.amiri(ctx), 19f, g.text)
-        pt.fit(pp, phase.third, w - 24f, phraseH - 4f, 9f)
-        pt.drawInk(pp, phase.third, RectF(12f, h - 10f - phraseH, w - 12f, h - 10f), Painter.H.CENTER)
+        pt.text(Fonts.kufiBold(ctx), 24f * s, look.text, Arabic.digits(inPhase.toString(), prefs.arabicDigits),
+            RectF(cx - r * 0.65f, cy - r * 0.45f, cx + r * 0.65f, cy + r * 0.45f), Painter.H.CENTER, 9f)
+        pt.text(Fonts.amiri(ctx), 19f * s, look.text, phase.third, RectF(10f, h - 10f - phraseH, w - 10f, h - 10f), Painter.H.CENTER, 8f)
         return pt.bitmap
     }
 

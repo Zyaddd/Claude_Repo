@@ -46,6 +46,18 @@ jobs:
             echo "SIGNING_KEY_ALIAS=widgets"
           } >> "$GITHUB_ENV"
 
+      - name: Check widget layouts (renders every widget with Android's text engine)
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Upload layout snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: widget-snapshots
+          path: app/build/snapshots/
+
       - name: Build release APK
         run: |
           chmod +x gradlew

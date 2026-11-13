@@ -42,15 +42,6 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("arabicDigits", true)
         set(v) = sp.edit().putBoolean("arabicDigits", v).apply()
 
-    /** Glass fill opacity in percent (5..60). */
-    var glassOpacity: Int
-        get() = sp.getInt("glassOpacity", 24)
-        set(v) = sp.edit().putInt("glassOpacity", v).apply()
-
-    /** 0 = dark glass, 1 = light glass, 2 = tinted from wallpaper. */
-    var glassTint: Int
-        get() = sp.getInt("glassTint", 0)
-        set(v) = sp.edit().putInt("glassTint", v).apply()
 
     /** 0 = imported font (Thuluth), 1 = Ruqaa, 2 = Naskh (Amiri), 3 = Kufi. */
     var headingFont: Int
@@ -69,4 +60,63 @@ class Prefs(context: Context) {
     var ayahOffset: Int
         get() = sp.getInt("ayahOffset", 0)
         set(v) = sp.edit().putInt("ayahOffset", v).apply()
+
+    var tasbihTap: Boolean
+        get() = sp.getBoolean("tasbihTap", true)
+        set(v) = sp.edit().putBoolean("tasbihTap", v).apply()
+
+    // ---------- Per-widget style ----------
+
+    fun style(t: WidgetType): WidgetStyle {
+        val k = t.key
+        return WidgetStyle(
+            background = sp.getBoolean("${k}_bg", true),
+            border = sp.getBoolean("${k}_border", true),
+            opacity = sp.getInt("${k}_opacity", 24),
+            tint = sp.getInt("${k}_tint", 0),
+            scale = sp.getInt("${k}_scale", 100),
+            textColor = sp.getInt("${k}_text", WidgetStyle.DEFAULT_TEXT),
+            accentColor = sp.getInt("${k}_accent", WidgetStyle.DEFAULT_ACCENT),
+            shadow = sp.getBoolean("${k}_shadow", true),
+        )
+    }
+
+    fun saveStyle(t: WidgetType, s: WidgetStyle) {
+        val k = t.key
+        sp.edit()
+            .putBoolean("${k}_bg", s.background)
+            .putBoolean("${k}_border", s.border)
+            .putInt("${k}_opacity", s.opacity)
+            .putInt("${k}_tint", s.tint)
+            .putInt("${k}_scale", s.scale)
+            .putInt("${k}_text", s.textColor)
+            .putInt("${k}_accent", s.accentColor)
+            .putBoolean("${k}_shadow", s.shadow)
+            .apply()
+    }
+}
+
+enum class WidgetType(val key: String, val title: String) {
+    PRAYER("prayer", "أوقات الصلاة"),
+    DATE("date", "التاريخ"),
+    AYAH("ayah", "الآية"),
+    TASBIH("tasbih", "التسبيح"),
+}
+
+/** How one widget type looks. Colors are ARGB ints; scale is a percentage (70..150). */
+data class WidgetStyle(
+    val background: Boolean,
+    val border: Boolean,
+    val opacity: Int,
+    /** 0 = dark glass, 1 = light glass, 2 = tinted from wallpaper. */
+    val tint: Int,
+    val scale: Int,
+    val textColor: Int,
+    val accentColor: Int,
+    val shadow: Boolean,
+) {
+    companion object {
+        const val DEFAULT_TEXT = -0x1 // white
+        const val DEFAULT_ACCENT = -0x1d58 // #FFE2A8
+    }
 }
