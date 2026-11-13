@@ -84,6 +84,17 @@ class RenderLayoutTest {
     )
 
     @Test
+    fun countdownWidthAssumptionHolds() {
+        // The Chronometer uses sans-serif-medium; its longest value is about 10 hours (Isha to Fajr).
+        val p = Paint().apply { typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL); textSize = 100f }
+        for (t in listOf("10:04:00", "١٠:٠٤:٠٠", "−0:00:01")) {
+            val em = p.measureText(t) / 100f
+            println("COUNTDOWN '$t' width = ${em}em (allowed ${Render.CHRONO_EM_W})")
+            assertTrue("countdown '$t' is ${em}em wide", em <= Render.CHRONO_EM_W)
+        }
+    }
+
+    @Test
     fun allWidgetsFitAtAllSizes() {
         prefs.latitude = 21.4858; prefs.longitude = 39.1925; prefs.cityName = "جدة"
         for (type in WidgetType.values()) {

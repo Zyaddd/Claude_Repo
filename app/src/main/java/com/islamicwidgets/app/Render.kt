@@ -198,25 +198,36 @@ object Render {
 
     private val dynamic get() = Build.VERSION.SDK_INT >= 31
 
+    /** Width of the countdown text per dp of text size, for the longest value ("10:04:00"). */
+    const val CHRONO_EM_W = 4.6f
+
     fun prayerGeom(w: Float, h: Float, look: Look): PrayerGeom {
         val s = look.scale
         return if (w >= WIDE_MIN_W) {
-            val labelSize = (11f * s).coerceIn(8f, 15f)
+            val labelSize = if (dynamic) (11f * s).coerceIn(8f, 15f) else 11f
+            val top = if (dynamic) PAD + labelSize * 1.3f + 1f else FIXED_TOP
+            val wanted = if (dynamic) (28f * s).coerceIn(18f, 40f) else FIXED_SIZE_WIDE
+            val maxByW = (w - 2 * PAD) * 0.56f / CHRONO_EM_W
+            val maxByH = (h - 6f - top) / 1.18f
             PrayerGeom(
                 small = false,
-                chronoSize = if (dynamic) (28f * s).coerceIn(18f, 40f) else FIXED_SIZE_WIDE,
+                chronoSize = minOf(wanted, maxByW, maxByH).coerceAtLeast(10f),
                 chronoLeft = FIXED_LEFT,
-                chronoTop = if (dynamic) PAD + labelSize * 1.3f + 1f else FIXED_TOP,
+                chronoTop = top,
                 chronoBottom = 0f,
             )
         } else {
-            val small = (12f * s).coerceIn(8f, 15f)
+            val small = if (dynamic) (12f * s).coerceIn(8f, 15f) else 12f
+            val wanted = if (dynamic) (26f * s).coerceIn(16f, 36f) else FIXED_SIZE_SMALL
+            val bottom = if (dynamic) 12f + small * 1.3f + 2f else FIXED_BOTTOM
+            val maxByW = (w - 16f) / CHRONO_EM_W
+            val maxByH = (h - bottom - 24f) / 1.18f // leave room for the prayer name above
             PrayerGeom(
                 small = true,
-                chronoSize = if (dynamic) (26f * s).coerceIn(16f, 36f) else FIXED_SIZE_SMALL,
+                chronoSize = minOf(wanted, maxByW, maxByH).coerceAtLeast(10f),
                 chronoLeft = 0f,
                 chronoTop = 0f,
-                chronoBottom = if (dynamic) 12f + small * 1.3f + 2f else FIXED_BOTTOM,
+                chronoBottom = bottom,
             )
         }
     }
@@ -233,7 +244,7 @@ object Render {
         val kufi = Fonts.kufi(ctx)
         pt.card()
         val chronoLine = geo.chronoSize * 1.18f
-        val chronoW = geo.chronoSize * 4.3f // width of "0:00:00"
+        val chronoW = geo.chronoSize * CHRONO_EM_W
         if (geo.small) {
             pt.reserve("countdown", RectF(w / 2f - chronoW / 2f, h - geo.chronoBottom - chronoLine, w / 2f + chronoW / 2f, h - geo.chronoBottom))
         } else {
@@ -263,7 +274,7 @@ object Render {
             else -> h - PAD
         }
 
-        val leftW = ((w - 2 * PAD) * 0.42f).coerceAtLeast(geo.chronoSize * 4.4f).coerceAtMost((w - 2 * PAD) * 0.56f)
+        val leftW = ((w - 2 * PAD) * 0.42f).coerceAtLeast(geo.chronoSize * CHRONO_EM_W).coerceAtMost((w - 2 * PAD) * 0.56f)
         val left = geo.chronoLeft
         pt.text(kufi, labelSize, look.muted, "الصلاة القادمة بعد", RectF(left, PAD, left + leftW, PAD + labelSize * 1.2f), Painter.H.LEFT)
         if (showCity) {
@@ -435,10 +446,24 @@ object Render {
         val count = prefs.tasbihCount.coerceIn(0, 99)
         val phase = phases.last { count >= it.first }
         val inPhase = count - phase.first
-        val phraseH = (24f * s).coerceIn(16f, 34f)
-        val r = (min(w - 32f, h - phraseH - 34f) / 2f).coerceAtLeast(14f)
-        val cx = w / 2f
-        val cy = 12f + r + ((h - phraseH - 24f - 2 * r) / 2f).coerceAtLeast(0f)
+        val horizontal = w >= h * 1.6f
+        val r: Float
+        val cx: Float
+        val cy: Float
+        val phraseBox: RectF
+        if (horizontal) {
+            // Ring on the right (start of RTL reading), phrase beside it.
+            r = ((h - 24f) / 2f).coerceAtLeast(10f)
+            cx = w - 12f - 2.5f - r
+            cy = h / 2f
+            phraseBox = RectF(12f, 10f, cx - r - 2.5f - 12f, h - 10f)
+        } else {
+            val phraseH = (24f * s).coerceIn(16f, 34f)
+            r = (min(w - 32f, h - phraseH - 34f) / 2f).coerceAtLeast(10f)
+            cx = w / 2f
+            cy = 12f + r + ((h - phraseH - 24f - 2 * r) / 2f).coerceAtLeast(0f)
+            phraseBox = RectF(10f, h - 10f - phraseH, w - 10f, h - 10f)
+        }
         val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE; strokeWidth = 5f; color = look.track; strokeCap = Paint.Cap.ROUND
         }
@@ -449,8 +474,8 @@ object Render {
         val sweep = 360f * inPhase / phase.second
         if (sweep > 0f) pt.canvas.drawArc(oval, -90f, sweep, false, ring)
         pt.text(Fonts.kufiBold(ctx), 24f * s, look.text, Arabic.digits(inPhase.toString(), prefs.arabicDigits),
-            RectF(cx - r * 0.65f, cy - r * 0.45f, cx + r * 0.65f, cy + r * 0.45f), Painter.H.CENTER, 9f)
-        pt.text(Fonts.amiri(ctx), 19f * s, look.text, phase.third, RectF(10f, h - 10f - phraseH, w - 10f, h - 10f), Painter.H.CENTER, 8f)
+            RectF(cx - r * 0.65f, cy - r * 0.45f, cx + r * 0.65f, cy + r * 0.45f), Painter.H.CENTER, 7f)
+        pt.text(Fonts.amiri(ctx), 19f * s, look.text, phase.third, phraseBox, Painter.H.CENTER, 7f)
         return pt.bitmap
     }
 
