@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ويدجت إسلامية</string>
+    <string name="widget_prayer">أوقات الصلاة</string>
+    <string name="widget_date">التاريخ الهجري</string>
+    <string name="widget_ayah">آية اليوم</string>
+    <string name="widget_tasbih">التسبيح</string>
+    <string name="widget_prayer_desc">الصلاة القادمة مع عدّاد تنازلي وأوقات اليوم</string>
+    <string name="widget_date_desc">اليوم والتاريخ الهجري والميلادي</string>
+    <string name="widget_ayah_desc">آية كل يوم، اضغط لعرض آية أخرى</string>
+    <string name="widget_tasbih_desc">اضغط للتسبيح: ٣٣ تسبيحة، ٣٣ تحميدة، ٣٤ تكبيرة</string>
+</resources>

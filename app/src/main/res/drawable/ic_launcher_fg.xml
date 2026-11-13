@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Eight-pointed star (two overlapping squares) inside the adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#D9B26A" android:pathData="M38,38h32v32h-32z" />
+    <group android:pivotX="54" android:pivotY="54" android:rotation="45">
+        <path android:fillColor="#D9B26A" android:pathData="M38,38h32v32h-32z" />
+    </group>
+    <path android:fillColor="#0B1526" android:pathData="M54,44a10,10 0,1 0,0.01 0z" />
+    <path android:fillColor="#D9B26A" android:pathData="M54,49a5,5 0,1 0,0.01 0z" />
+</vector>
