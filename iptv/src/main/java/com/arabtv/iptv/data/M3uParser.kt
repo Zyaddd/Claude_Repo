@@ -33,7 +33,7 @@ object M3uParser {
         }
 
         for (raw in text.lineSequence()) {
-            val line = raw.trim().removePrefix("﻿")
+            val line = raw.trim().removePrefix("\uFEFF")
             when {
                 line.isEmpty() -> Unit
                 line.startsWith("#EXTINF", ignoreCase = true) -> {
