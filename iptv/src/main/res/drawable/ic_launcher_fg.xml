@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A television with antennas and a play mark, inside the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:strokeColor="#E3B341"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M44,33 L54,42 L64,33" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,42 h40 a6,6 0 0 1 6,6 v20 a6,6 0 0 1 -6,6 h-40 a6,6 0 0 1 -6,-6 v-20 a6,6 0 0 1 6,-6 z" />
+    <path
+        android:fillColor="#0E7C66"
+        android:pathData="M49,50 L63,58 L49,66 Z" />
+</vector>

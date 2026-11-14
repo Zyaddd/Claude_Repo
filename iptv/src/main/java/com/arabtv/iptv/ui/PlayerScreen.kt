@@ -1,0 +1,513 @@
+@file:OptIn(UnstableApi::class)
+
+package com.arabtv.iptv.ui
+
+import android.view.View
+import androidx.annotation.OptIn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
+import com.arabtv.iptv.R
+import com.arabtv.iptv.data.Channel
+import com.arabtv.iptv.player.QualityOption
+import kotlinx.coroutines.delay
+
+private val resizeModes = listOf(
+    AspectRatioFrameLayout.RESIZE_MODE_FIT,
+    AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+    AspectRatioFrameLayout.RESIZE_MODE_FILL,
+)
+
+@Composable
+fun PlayerScreen(
+    vm: AppViewModel,
+    fullscreen: Boolean,
+    inPip: Boolean,
+    onToggleFullscreen: () -> Unit,
+    onPlayerView: (PlayerView?) -> Unit,
+    onOpenTvSheet: (Channel?) -> Unit,
+) {
+    val state by vm.playback.state.collectAsState()
+    val settings by vm.settings.collectAsState()
+    val health by vm.health.collectAsState()
+    val castDevice by vm.cast.deviceName.collectAsState()
+    val showOptions by vm.showOptions.collectAsState()
+    val channel = state.channel ?: return
+    var controls by remember { mutableStateOf(true) }
+    var resizeIndex by remember { mutableIntStateOf(0) }
+    val landscape = LocalConfiguration.current.screenWidthDp > LocalConfiguration.current.screenHeightDp
+
+    val currentFullscreen by rememberUpdatedState(fullscreen)
+    val currentToggle by rememberUpdatedState(onToggleFullscreen)
+    val currentInPip by rememberUpdatedState(inPip)
+    val currentResize by rememberUpdatedState(resizeModes[resizeIndex])
+
+    val video = remember {
+        movableContentOf {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = vm.playback.player
+                        keepScreenOn = true
+                        setBackgroundColor(android.graphics.Color.BLACK)
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                        setShowNextButton(false)
+                        setShowPreviousButton(false)
+                        setShowFastForwardButton(false)
+                        setShowRewindButton(false)
+                        controllerShowTimeoutMs = 4000
+                        setControllerVisibilityListener(
+                            PlayerView.ControllerVisibilityListener { visibility ->
+                                val visible = visibility == View.VISIBLE
+                                controls = visible
+                                vm.controllerVisible = visible
+                            },
+                        )
+                        if (!vm.isTv) setFullscreenButtonClickListener { currentToggle() }
+                        isFocusable = true
+                        onPlayerView(this)
+                        if (vm.isTv) post { requestFocus() }
+                    }
+                },
+                update = { v ->
+                    v.resizeMode = currentResize
+                    v.useController = !currentInPip
+                    if (!vm.isTv) v.setFullscreenButtonState(currentFullscreen)
+                },
+                onRelease = { v ->
+                    v.player = null
+                    onPlayerView(null)
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+
+    @Composable
+    fun VideoBox(modifier: Modifier) {
+        Box(modifier.background(Color.Black)) {
+            video()
+            if (!inPip) {
+                PlayerOverlays(
+                    vm = vm,
+                    channel = channel,
+                    controls = controls,
+                    fullscreenLayout = fullscreen || vm.isTv,
+                    buffering = state.buffering,
+                    switching = state.switching,
+                    error = state.error,
+                    castDevice = castDevice,
+                    favorite = channel.id in settings.favorites,
+                    onOpenTvSheet = onOpenTvSheet,
+                )
+            }
+        }
+    }
+
+    when {
+        fullscreen || inPip || vm.isTv -> VideoBox(Modifier.fillMaxSize())
+        landscape -> Row(Modifier.fillMaxSize()) {
+            VideoBox(Modifier.weight(0.62f).fillMaxHeight())
+            QueueList(vm, channel, health, Modifier.weight(0.38f).fillMaxHeight())
+        }
+        else -> Column(Modifier.fillMaxSize()) {
+            VideoBox(Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+            NowPlayingInfo(vm, channel, channel.id in settings.favorites, health[channel.id])
+            QueueList(vm, channel, health, Modifier.weight(1f).fillMaxWidth())
+        }
+    }
+
+    if (showOptions) {
+        PlayerOptionsDialog(
+            vm = vm,
+            channel = channel,
+            favorite = channel.id in settings.favorites,
+            resizeIndex = resizeIndex,
+            onResize = { resizeIndex = (resizeIndex + 1) % resizeModes.size },
+            onOpenTvSheet = onOpenTvSheet,
+            onDismiss = { vm.setShowOptions(false) },
+        )
+    }
+}
+
+@Composable
+private fun PlayerOverlays(
+    vm: AppViewModel,
+    channel: Channel,
+    controls: Boolean,
+    fullscreenLayout: Boolean,
+    buffering: Boolean,
+    switching: Boolean,
+    error: String?,
+    castDevice: String?,
+    favorite: Boolean,
+    onOpenTvSheet: (Channel?) -> Unit,
+) {
+    // On TV, flash the channel name for a few seconds after every change.
+    var osd by remember { mutableStateOf(true) }
+    LaunchedEffect(channel.id) {
+        osd = true
+        delay(4000)
+        osd = false
+    }
+    Box(Modifier.fillMaxSize()) {
+        if (controls || osd || error != null) {
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(Color(0x99000000))
+                    .then(if (fullscreenLayout) Modifier.padding(horizontal = 8.dp) else Modifier)
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (!vm.isTv) {
+                    IconButton(onClick = { vm.closePlayer() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = Color.White)
+                    }
+                } else {
+                    Spacer(Modifier.size(16.dp))
+                }
+                ChannelLogo(channel, vm.title(channel), Modifier.size(width = 52.dp, height = 34.dp))
+                Spacer(Modifier.size(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        vm.title(channel),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    val pos = vm.playback.queue.indexOfFirst { it.id == channel.id }
+                    if (vm.isTv && pos >= 0) {
+                        Text(
+                            stringResource(R.string.channel_position, pos + 1, vm.playback.queue.size),
+                            color = Color(0xFFB0BAC5),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+                if (favorite) Icon(Icons.Filled.Star, null, tint = Gold, modifier = Modifier.padding(8.dp))
+                if (!vm.isTv && controls) {
+                    if (vm.cast.castContext != null) CastButton(Modifier.size(48.dp))
+                    IconButton(onClick = { onOpenTvSheet(channel) }) {
+                        Icon(painterResource(R.drawable.ic_tv), stringResource(R.string.send_to_tv), tint = Color.White)
+                    }
+                    IconButton(onClick = { vm.setShowOptions(true) }) {
+                        Icon(Icons.Filled.MoreVert, stringResource(R.string.options), tint = Color.White)
+                    }
+                }
+                if (vm.isTv && controls) {
+                    Text(
+                        stringResource(R.string.tv_hint),
+                        color = Color(0xFFB0BAC5),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(end = 16.dp),
+                    )
+                }
+            }
+        }
+
+        if (switching && error == null && castDevice == null) {
+            Text(
+                stringResource(R.string.trying_other_source),
+                color = Color.White,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 72.dp)
+                    .background(Color(0x99000000), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
+
+        if (castDevice != null) {
+            CastingPanel(vm, castDevice, Modifier.align(Alignment.Center))
+        } else if (error != null) {
+            ErrorPanel(vm, channel, error, Modifier.align(Alignment.Center))
+        }
+    }
+}
+
+@Composable
+private fun CastingPanel(vm: AppViewModel, device: String, modifier: Modifier) {
+    Surface(modifier.padding(16.dp), color = Color(0xDD151B23), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.casting_to, device), color = Color.White, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.cast_note),
+                color = Color(0xFFB0BAC5),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = 320.dp).padding(vertical = 8.dp),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { vm.cast.togglePause() }) { Text(stringResource(R.string.play_pause)) }
+                Button(onClick = { vm.cast.stopCasting() }) { Text(stringResource(R.string.stop_casting)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ErrorPanel(vm: AppViewModel, channel: Channel, error: String, modifier: Modifier) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(error) { runCatching { focus.requestFocus() } }
+    Surface(modifier.padding(16.dp), color = Color(0xEE151B23), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.stream_failed), color = Color.White, fontWeight = FontWeight.Bold)
+            Text(error, color = Color(0xFFB0BAC5), style = MaterialTheme.typography.bodySmall)
+            if (channel.geoBlocked) {
+                Text(
+                    stringResource(R.string.geo_note),
+                    color = Gold,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = 320.dp).padding(top = 6.dp),
+                )
+            }
+            Spacer(Modifier.size(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { vm.playback.retry() }, modifier = Modifier.focusRequester(focus)) {
+                    Text(stringResource(R.string.retry))
+                }
+                if (vm.playback.queue.size > 1) {
+                    OutlinedButton(onClick = { vm.zap(1) }) { Text(stringResource(R.string.next_channel)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NowPlayingInfo(vm: AppViewModel, channel: Channel, favorite: Boolean, health: Boolean?) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(vm.title(channel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+            ChannelBadges(channel, health)
+        }
+        IconButton(onClick = { vm.toggleFavorite(channel.id) }) {
+            Icon(
+                Icons.Filled.Star,
+                stringResource(if (favorite) R.string.remove_favorite else R.string.add_favorite),
+                tint = if (favorite) Gold else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun QueueList(vm: AppViewModel, current: Channel, health: Map<String, Boolean>, modifier: Modifier) {
+    val queue = vm.playback.queue
+    val listState = rememberLazyListState()
+    LaunchedEffect(current.id) {
+        val i = queue.indexOfFirst { it.id == current.id }
+        if (i >= 0) listState.animateScrollToItem(maxOf(0, i - 1))
+    }
+    LazyColumn(modifier, state = listState, contentPadding = PaddingValues(8.dp)) {
+        items(queue, key = { it.id }) { ch ->
+            ChannelRow(ch, vm.title(ch), ch.id == current.id, health[ch.id]) { vm.zapTo(ch) }
+        }
+    }
+}
+
+@Composable
+private fun PlayerOptionsDialog(
+    vm: AppViewModel,
+    channel: Channel,
+    favorite: Boolean,
+    resizeIndex: Int,
+    onResize: () -> Unit,
+    onOpenTvSheet: (Channel?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val health by vm.health.collectAsState()
+    val sleepAt by vm.sleepAt.collectAsState()
+    var page by remember { mutableStateOf("main") }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(page) { runCatching { firstFocus.requestFocus() } }
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            color = Surface1,
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.padding(24.dp).widthIn(max = 640.dp).heightIn(max = 560.dp),
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text(vm.title(channel), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.size(8.dp))
+                when (page) {
+                    "quality" -> {
+                        val options = remember { vm.playback.qualities() }
+                        MenuItem(stringResource(R.string.quality_auto)) { vm.playback.setQuality(null); onDismiss() }
+                        options.forEach { q: QualityOption ->
+                            MenuItem(q.label) { vm.playback.setQuality(q); onDismiss() }
+                        }
+                        if (options.isEmpty()) {
+                            Text(stringResource(R.string.quality_none), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        FocusAnchor(firstFocus)
+                    }
+                    "sleep" -> {
+                        MenuItem(stringResource(R.string.sleep_off)) { vm.setSleepTimer(null); onDismiss() }
+                        listOf(15, 30, 60, 90, 120).forEach { m ->
+                            MenuItem(stringResource(R.string.sleep_minutes, m)) { vm.setSleepTimer(m); onDismiss() }
+                        }
+                        FocusAnchor(firstFocus)
+                    }
+                    else -> {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            OptionButton(
+                                Icons.Filled.Star,
+                                stringResource(if (favorite) R.string.remove_favorite else R.string.add_favorite),
+                                Modifier.weight(1f).focusRequester(firstFocus),
+                            ) { vm.toggleFavorite(channel.id) }
+                            OptionButton(R.drawable.ic_quality, stringResource(R.string.quality), Modifier.weight(1f)) {
+                                page = "quality"
+                            }
+                            OptionButton(
+                                R.drawable.ic_aspect,
+                                stringResource(
+                                    listOf(R.string.aspect_fit, R.string.aspect_zoom, R.string.aspect_fill)[resizeIndex],
+                                ),
+                                Modifier.weight(1f),
+                            ) { onResize() }
+                            OptionButton(
+                                R.drawable.ic_timer,
+                                sleepAt?.let { at ->
+                                    stringResource(R.string.sleep_left, ((at - System.currentTimeMillis()) / 60_000L + 1).toInt())
+                                } ?: stringResource(R.string.sleep_timer),
+                                Modifier.weight(1f),
+                            ) { page = "sleep" }
+                            OptionButton(Icons.Filled.Refresh, stringResource(R.string.reload), Modifier.weight(1f)) {
+                                vm.playback.retry(); onDismiss()
+                            }
+                            if (!vm.isTv) {
+                                OptionButton(R.drawable.ic_tv, stringResource(R.string.send_to_tv), Modifier.weight(1f)) {
+                                    onDismiss(); onOpenTvSheet(channel)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.channels), color = Gold, style = MaterialTheme.typography.labelLarge)
+                        val queue = vm.playback.queue
+                        val listState = rememberLazyListState(
+                            initialFirstVisibleItemIndex = maxOf(0, queue.indexOfFirst { it.id == channel.id }),
+                        )
+                        LazyColumn(state = listState, modifier = Modifier.fillMaxWidth()) {
+                            items(queue, key = { it.id }) { ch ->
+                                ChannelRow(ch, vm.title(ch), ch.id == channel.id, health[ch.id]) {
+                                    vm.zapTo(ch); onDismiss()
+                                }
+                            }
+                        }
+                    }
+                }
+                if (page != "main") {
+                    TextButton(onClick = { page = "main" }) { Text(stringResource(R.string.back)) }
+                }
+            }
+        }
+    }
+}
+
+/** An invisible focus target so D-pad focus lands inside sub-pages. */
+@Composable
+private fun FocusAnchor(requester: FocusRequester) {
+    Box(Modifier.size(1.dp).focusRequester(requester).focusable())
+}
+
+@Composable
+private fun OptionButton(icon: Int, label: String, modifier: Modifier, onClick: () -> Unit) {
+    OptionButtonBase({ Icon(painterResource(icon), null) }, label, modifier, onClick)
+}
+
+@Composable
+private fun OptionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    OptionButtonBase({ Icon(icon, null) }, label, modifier, onClick)
+}
+
+@Composable
+private fun OptionButtonBase(icon: @Composable () -> Unit, label: String, modifier: Modifier, onClick: () -> Unit) {
+    val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Surface(
+        onClick = onClick,
+        interactionSource = source,
+        border = focusBorder(source),
+        color = Surface2,
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier,
+    ) {
+        Column(Modifier.padding(vertical = 10.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            icon()
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}

@@ -25,3 +25,12 @@ Without them each build gets a temporary key, so uninstall the old version befor
 
 Bundled fonts are under the SIL Open Font License: Amiri, Amiri Quran, Aref Ruqaa, Noto Kufi Arabic, Reem Kufi.
 Other fonts (e.g. DecoType Thuluth) are not bundled; import them in Settings.
+
+---
+
+# تلفاز عربي — Arab TV (IPTV)
+
+The `iptv/` module is a separate app: Arabic news, documentary and cartoon channels for phone and
+Android TV, with casting to the TV on the same Wi-Fi or from anywhere. See [iptv/README.md](iptv/README.md).
+
+Download: <https://github.com/Zyaddd/Claude_Repo/releases/download/arabtv/ArabTV.apk>

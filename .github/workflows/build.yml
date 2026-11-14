@@ -3,6 +3,9 @@ name: Build APK
 on:
   push:
     branches: ["**"]
+    paths-ignore:
+      - "iptv/**"
+      - ".github/workflows/iptv.yml"
   workflow_dispatch:
 
 permissions:
@@ -49,7 +52,7 @@ jobs:
       - name: Check widget layouts (renders every widget with Android's text engine)
         run: |
           chmod +x gradlew
-          ./gradlew testDebugUnitTest --no-daemon
+          ./gradlew :app:testDebugUnitTest --no-daemon
 
       - name: Upload layout snapshots
         if: always()
@@ -61,7 +64,7 @@ jobs:
       - name: Build release APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease -PversionCode=${{ github.run_number }} --no-daemon --stacktrace
+          ./gradlew :app:assembleRelease -PversionCode=${{ github.run_number }} --no-daemon --stacktrace
 
       - name: Publish release
         env:
