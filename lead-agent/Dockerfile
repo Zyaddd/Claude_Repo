@@ -6,5 +6,6 @@ COPY . .
 ENV NODE_ENV=production PORT=8080 DATA_DIR=/data
 VOLUME /data
 EXPOSE 8080
-USER node
+# Runs as root on purpose: hosting volumes mounted at /data are usually root-owned,
+# and a non-root user couldn't save leads there.
 CMD ["node", "server.js"]
