@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ربط 62 · عرض ثلاثي الأبعاد</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#14161c;
+  --panel:rgba(18,20,26,.82);
+  --panel-solid:#16181f;
+  --line:rgba(255,255,255,.09);
+  --text:#f4efe6;
+  --muted:#a9a196;
+  --accent:#d4ad6e;
+  --accent-ink:#1a140b;
+  --avail:#3fbf7f;
+  --res:#e5a53a;
+  --sold:#767b85;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:linear-gradient(180deg,#151a26 0%,#2c2b36 38%,#6d5546 72%,#a9825e 100%);
+  color:var(--text);
+  font-family:'IBM Plex Sans Arabic',system-ui,-apple-system,'Segoe UI',sans-serif;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+#scene{position:fixed;inset:0}
+#scene canvas{display:block;touch-action:none;outline:none}
+
+.glass{
+  background:var(--panel);
+  border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(14px);
+  backdrop-filter:blur(14px);
+  border-radius:var(--radius);
+  box-shadow:0 10px 40px rgba(0,0,0,.35);
+}
+
+/* ---------- header ---------- */
+.top{
+  position:fixed;top:16px;left:16px;right:16px;
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  pointer-events:none;z-index:5;
+}
+.top > *{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:12px;padding:10px 16px 10px 14px}
+.mark{
+  width:42px;height:42px;border-radius:12px;
+  display:grid;place-items:center;
+  background:linear-gradient(145deg,#e7c68f,#b88c4c);
+  color:var(--accent-ink);font-weight:700;font-size:18px;letter-spacing:.5px;
+}
+.brand h1{font-size:19px;font-weight:700;line-height:1.2}
+.brand p{font-size:12.5px;color:var(--muted)}
+.badge{
+  font-size:11px;font-weight:600;color:var(--accent);
+  border:1px solid rgba(212,173,110,.4);border-radius:999px;padding:3px 9px;margin-inline-start:4px;
+  white-space:nowrap;
+}
+.actions{display:flex;gap:8px;align-items:center;padding:6px}
+.seg{display:flex;background:rgba(255,255,255,.06);border-radius:11px;padding:3px}
+.seg button{padding:7px 14px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--muted);transition:.2s}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.icon-btn{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:rgba(255,255,255,.06);transition:.2s}
+.icon-btn:hover{background:rgba(255,255,255,.12)}
+.icon-btn svg{width:18px;height:18px}
+
+/* ---------- floor rail ---------- */
+.floors{
+  position:fixed;right:16px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:4px;padding:8px;z-index:4;
+}
+.floors .lbl{font-size:11px;color:var(--muted);text-align:center;padding:2px 0 6px}
+.floors button{
+  width:44px;height:30px;border-radius:9px;font-size:13px;font-weight:500;
+  color:var(--muted);transition:.15s;position:relative;
+}
+.floors button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.floors button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.floors button .dot{
+  position:absolute;top:5px;left:5px;width:6px;height:6px;border-radius:50%;background:var(--avail);
+}
+
+/* ---------- bottom bar ---------- */
+.bottom{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:8px;z-index:4;
+  max-width:calc(100vw - 32px);
+}
+.filters{display:flex;gap:4px;padding:5px;overflow-x:auto;max-width:100%;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.filters button{
+  padding:8px 14px;border-radius:10px;font-size:13.5px;color:var(--muted);white-space:nowrap;transition:.15s;
+}
+.filters button:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.filters button.on{background:rgba(212,173,110,.18);color:var(--accent);font-weight:600}
+.legend{display:flex;gap:16px;padding:8px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.legend b{color:var(--text);font-weight:600}
+
+/* ---------- details panel ---------- */
+.panel{
+  position:fixed;left:16px;top:88px;width:350px;
+  max-height:calc(100vh - 200px);overflow-y:auto;
+  padding:18px;z-index:6;
+  transition:opacity .25s, transform .25s;
+}
+.panel[hidden]{display:block;opacity:0;transform:translateX(-12px);pointer-events:none}
+.panel .close{
+  position:absolute;top:12px;left:12px;width:30px;height:30px;border-radius:9px;
+  font-size:20px;line-height:1;color:var(--muted);background:rgba(255,255,255,.06);
+}
+.panel .close:hover{color:var(--text)}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-left:36px}
+.ph small{font-size:12.5px;color:var(--muted)}
+.ph h2{font-size:24px;font-weight:700;line-height:1.25;direction:rtl}
+.pill{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap;margin-top:4px}
+.pill.available{background:rgba(63,191,127,.16);color:#6fe0a6}
+.pill.reserved{background:rgba(229,165,58,.16);color:#f2c06c}
+.pill.sold{background:rgba(160,165,175,.16);color:#c3c7cf}
+.plan{
+  margin:14px 0;padding:12px;border-radius:12px;
+  background:rgba(255,255,255,.035);border:1px solid var(--line);
+}
+.plan svg{width:100%;height:auto;display:block}
+.plan .cap{font-size:11.5px;color:var(--muted);margin-top:6px;text-align:center}
+.specs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.specs div{background:rgba(255,255,255,.04);border-radius:10px;padding:9px 11px}
+.specs dt{font-size:11.5px;color:var(--muted)}
+.specs dd{font-size:15px;font-weight:600;margin-top:1px}
+.price{margin:14px 0 12px;display:flex;flex-direction:column}
+.price small{font-size:12px;color:var(--muted)}
+.price strong{font-size:26px;font-weight:700;color:var(--accent);letter-spacing:.2px}
+.price em{font-style:normal;font-size:15px;font-weight:500}
+.price .soldmsg{font-size:15px;color:var(--muted)}
+.cta{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:13px;border-radius:12px;font-weight:600;font-size:15px;text-decoration:none;
+  background:#25d366;color:#06240f;transition:filter .15s;
+}
+.cta:hover{filter:brightness(1.08)}
+.cta svg{width:19px;height:19px}
+.cta.ghost{background:rgba(212,173,110,.16);color:var(--accent)}
+.unav{display:flex;justify-content:space-between;margin-top:10px}
+.unav button{font-size:13px;color:var(--muted);padding:6px 4px}
+.unav button:hover{color:var(--text)}
+
+/* ---------- misc ---------- */
+#tip{
+  position:fixed;pointer-events:none;z-index:7;
+  padding:6px 10px;border-radius:9px;font-size:12.5px;white-space:nowrap;
+  background:rgba(12,13,17,.88);border:1px solid var(--line);
+  transform:translate(-50%,-140%);opacity:0;transition:opacity .12s;
+}
+#tip.show{opacity:1}
+#tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:6px}
+#hint{
+  position:fixed;top:96px;left:50%;transform:translateX(-50%);z-index:3;
+  font-size:13px;color:var(--text);padding:8px 14px;border-radius:999px;
+  background:rgba(12,13,17,.55);border:1px solid var(--line);white-space:nowrap;
+  transition:opacity .6s;
+}
+#hint.gone{opacity:0;pointer-events:none}
+.disclaimer{
+  position:fixed;bottom:6px;right:16px;z-index:3;font-size:10.5px;color:rgba(244,239,230,.55);
+}
+#fail{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px;z-index:10}
+#fail[hidden]{display:none}
+#loading{position:fixed;inset:0;display:grid;place-items:center;z-index:9;background:var(--bg);transition:opacity .6s}
+#loading.done{opacity:0;pointer-events:none}
+#loading .ring{width:38px;height:38px;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:var(--accent);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- mobile ---------- */
+@media (max-width:760px){
+  .top{flex-direction:column;align-items:stretch}
+  .brand{padding:8px 12px}
+  .mark{width:36px;height:36px;font-size:15px}
+  .brand h1{font-size:17px}
+  .actions{justify-content:space-between}
+  .seg{flex:1}
+  .seg button{flex:1}
+  #hint{top:auto;bottom:178px;font-size:12px}
+  .floors{
+    top:auto;bottom:118px;right:16px;left:16px;transform:none;
+    flex-direction:row-reverse;overflow-x:auto;scrollbar-width:none;
+  }
+  .floors::-webkit-scrollbar{display:none}
+  .floors .lbl{display:none}
+  .floors button{flex:0 0 40px}
+  .bottom{left:16px;right:16px;transform:none;max-width:none}
+  .legend{gap:12px;font-size:12px;padding:7px 12px}
+  .panel{
+    left:0;right:0;top:auto;bottom:0;width:auto;
+    max-height:54vh;border-radius:20px 20px 0 0;
+    padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+    background:var(--panel-solid);
+  }
+  .panel[hidden]{transform:translateY(24px)}
+  .disclaimer{display:none}
+  .plan svg{max-height:120px}
+  .plan{margin:10px 0}
+  .ph h2{font-size:21px}
+}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="ring"></div></div>
+<div id="scene"></div>
+
+<header class="top">
+  <div class="brand glass">
+    <div class="mark">62</div>
+    <div>
+      <h1>ربط 62</h1>
+      <p>شرق الرياض · 40 وحدة سكنية</p>
+    </div>
+    <span class="badge">عرض تجريبي</span>
+  </div>
+  <div class="actions glass">
+    <div class="seg" role="group" aria-label="طريقة العرض">
+      <button data-mode="status" class="on">حالة الوحدات</button>
+      <button data-mode="facade">المظهر المعماري</button>
+    </div>
+    <button class="icon-btn" id="reset" title="إعادة العرض" aria-label="إعادة العرض">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+    </button>
+  </div>
+</header>
+
+<div id="hint">اسحب لتدوير المبنى · اضغط على أي وحدة لعرض تفاصيلها</div>
+
+<nav class="floors glass" id="floors" aria-label="الأدوار"></nav>
+
+<aside class="panel glass" id="panel" hidden aria-live="polite"></aside>
+
+<footer class="bottom">
+  <div class="filters glass" id="filters">
+    <button data-f="all" class="on">كل الوحدات</button>
+    <button data-f="available">المتاحة فقط</button>
+    <button data-f="2">غرفتين</button>
+    <button data-f="3">3 غرف</button>
+    <button data-f="P">بنتهاوس</button>
+  </div>
+  <div class="legend glass">
+    <span><i style="background:var(--avail)"></i>متاحة <b id="cA">0</b></span>
+    <span><i style="background:var(--res)"></i>محجوزة <b id="cR">0</b></span>
+    <span><i style="background:var(--sold)"></i>مباعة <b id="cS">0</b></span>
+  </div>
+</footer>
+
+<p class="disclaimer">نموذج مبدئي لأغراض العرض · التصميم والأسعار والمساحات توضيحية</p>
+<div id="tip"></div>
+<div id="fail" hidden><p>متصفحك لا يدعم العرض ثلاثي الأبعاد (WebGL).<br>جرّب فتح الصفحة من متصفح حديث.</p></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const loading = $('#loading');
+
+  if (!window.THREE || !THREE.OrbitControls) { loading.classList.add('done'); $('#fail').hidden = false; return; }
+
+  /* ================= DATA ================= */
+  const WHATSAPP = '966500000000'; // ضع رقم فريق المبيعات هنا
+  const STATUS = {
+    available: { label: 'متاحة',  hex: 0x3fbf7f, css: '#3fbf7f' },
+    reserved:  { label: 'محجوزة', hex: 0xe5a53a, css: '#e5a53a' },
+    sold:      { label: 'مباعة',  hex: 0x6a6f79, css: '#767b85' }
+  };
+  const TYPES = {
+    A: { name: 'نموذج A', beds: 3, baths: 3, area: 176, face: 'أمامية' },
+    B: { name: 'نموذج B', beds: 3, baths: 3, area: 176, face: 'أمامية' },
+    C: { name: 'نموذج C', beds: 2, baths: 2, area: 128, face: 'خلفية' },
+    D: { name: 'نموذج D', beds: 2, baths: 2, area: 128, face: 'خلفية' },
+    P: { name: 'بنتهاوس', beds: 4, baths: 4, area: 236, face: 'سطح خاص' }
+  };
+  // seeded random so the demo always shows the same availability
+  let seed = 62;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+  // building dimensions
+  const W = 26, D = 18, GH = 5, FH = 3.4, NF = 10, SLAB = 0.35;
+  const UH = FH - SLAB, UW = 12.7, UD = 8.7;
+  const QUAD = { A: [1, 1], B: [-1, 1], C: [-1, -1], D: [1, -1] }; // [x sign, z sign]; +z = front
+
+  const units = [];
+  for (let f = 1; f <= NF; f++) {
+    for (const L of ['A', 'B', 'C', 'D']) {
+      const type = f === NF ? 'P' : L;
+      const t = TYPES[type];
+      const r = rnd();
+      const status = r < (0.18 + f * 0.012) ? 'sold' : r < 0.42 ? 'reserved' : 'available';
+      const perM = 6200 + f * 85;
+      const price = Math.round(t.area * perM * (QUAD[L][1] > 0 ? 1.05 : 1) * (type === 'P' ? 1.22 : 1) / 1000) * 1000;
+      units.push({ code: f + L, floor: f, letter: L, type, status, price });
+    }
+  }
+
+  /* ================= SCENE ================= */
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (e) { loading.classList.add('done'); $('#fail').hidden = false; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  $('#scene').appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x8d6c55, 160, 340);
+  const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.5, 900);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = false;
+  controls.minDistance = 16;
+  controls.maxDistance = 220;
+  controls.maxPolarAngle = Math.PI * 0.485;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.55;
+
+  // lights: warm Riyadh late-afternoon
+  scene.add(new THREE.HemisphereLight(0xfff1dc, 0x4a3a2c, 0.8));
+  const sun = new THREE.DirectionalLight(0xffd3a0, 1.75);
+  sun.position.set(-50, 70, 45);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 10, far: 240 });
+  sun.shadow.bias = -0.0006;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xa9bcff, 0.35);
+  fill.position.set(60, 30, -50);
+  scene.add(fill);
+
+  // helpers
+  const mat = (color, rough = 0.85, metal = 0) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+  function box(w, h, d, material, x, y, z, cast = true) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    m.position.set(x, y, z);
+    m.castShadow = cast;
+    m.receiveShadow = true;
+    scene.add(m);
+    return m;
+  }
+
+  // ground that fades into the sky
+  {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(256, 256, 0, 256, 256, 256);
+    grd.addColorStop(0, 'rgba(214,190,156,1)');
+    grd.addColorStop(0.55, 'rgba(188,158,120,1)');
+    grd.addColorStop(1, 'rgba(150,118,88,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 512, 512);
+    const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(260, 64), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 1 }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+  }
+
+  // plaza + road
+  box(W + 22, 0.12, D + 20, mat(0xe8dac3, 0.95), 0, 0.06, 2, false);
+  box(320, 0.08, 13, mat(0x37332f, 0.9), 0, 0.05, 36, false);
+  for (let x = -150; x < 150; x += 8) box(3.5, 0.1, 0.35, mat(0xe9dfcc), x, 0.07, 36, false);
+  box(320, 0.18, 2.4, mat(0xcdbb9e, 0.95), 0, 0.09, 28.6, false);
+
+  // context buildings (simple, quiet massing)
+  {
+    const ctxMat = mat(0xd3c3aa, 0.95);
+    for (let i = 0; i < 26; i++) {
+      const a = rnd() * Math.PI * 2, rad = 62 + rnd() * 60;
+      const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
+      if (Math.abs(z - 36) < 14) continue;
+      const w = 10 + rnd() * 14, d = 10 + rnd() * 12, h = 5 + rnd() * 20;
+      box(w, h, d, ctxMat, x, h / 2, z);
+    }
+  }
+
+  // palms
+  function palm(x, z, s = 1) {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18 * s, 0.3 * s, 6.5 * s, 7), mat(0x8a6b4a, 1));
+    trunk.position.set(x, 3.25 * s, z); trunk.castShadow = true; scene.add(trunk);
+    const leafMat = mat(0x5f7a3c, 0.9);
+    for (let i = 0; i < 7; i++) {
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.55 * s, 4 * s, 4), leafMat);
+      leaf.position.set(x, 6.5 * s, z);
+      leaf.rotation.order = 'YXZ';
+      leaf.rotation.y = (i / 7) * Math.PI * 2;
+      leaf.rotation.x = Math.PI / 2.6;
+      leaf.translateY(1.7 * s);
+      leaf.castShadow = true;
+      scene.add(leaf);
+    }
+  }
+  [[-20, 22], [-10, 22], [10, 22], [20, 22], [-22, 0], [22, 0], [-22, -16], [22, -16], [0, -18]].forEach(([x, z]) => palm(x, z, 0.95 + rnd() * 0.2));
+
+  /* ================= BUILDING ================= */
+  const stone = mat(0xece0cb, 0.85);
+  const stoneDark = mat(0xcbb898, 0.9);
+  const darkGlass = mat(0x262d35, 0.2, 0.6);
+  const TOP = GH + NF * FH;
+
+  // podium (lobby)
+  box(W - 2, GH - 0.4, D - 2, darkGlass, 0, (GH - 0.4) / 2, 0);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(1.3, GH, 1.3, stone, sx * (W / 2 - 0.65), GH / 2, sz * (D / 2 - 0.65));
+  box(14, 0.45, 4.2, stone, 0, GH - 0.55, D / 2 + 1.7);
+  box(0.4, GH - 0.8, 0.4, stone, -6.6, (GH - 0.8) / 2, D / 2 + 3.5);
+  box(0.4, GH - 0.8, 0.4, stone, 6.6, (GH - 0.8) / 2, D / 2 + 3.5);
+
+  // slabs (floor edges)
+  for (let f = 0; f <= NF; f++) box(W + 1.2, SLAB, D + 1.2, stone, 0, GH + f * FH, 0);
+
+  // facade fins (Najdi-inspired vertical rhythm)
+  const finH = NF * FH, finY = GH + finH / 2;
+  for (let i = -5; i <= 5; i++) {
+    if (i === 0) continue;
+    const x = i * 2.35;
+    box(0.26, finH, 0.55, stone, x, finY, D / 2 + 0.33);
+    box(0.26, finH, 0.55, stone, x, finY, -D / 2 - 0.33);
+  }
+  for (let i = -3; i <= 3; i++) {
+    if (i === 0) continue;
+    const z = i * 2.6;
+    box(0.55, finH, 0.26, stone, W / 2 + 0.33, finY, z);
+    box(0.55, finH, 0.26, stone, -W / 2 - 0.33, finY, z);
+  }
+  // central piers
+  box(1.1, finH, 1.3, stone, 0, finY, D / 2 + 0.1);
+  box(1.1, finH, 1.3, stone, 0, finY, -D / 2 - 0.1);
+  box(1.3, finH, 1.1, stone, W / 2 + 0.1, finY, 0);
+  box(1.3, finH, 1.1, stone, -W / 2 - 0.1, finY, 0);
+
+  // roof: parapet, rooftop structure, crown
+  box(W + 1.2, 1.2, 0.35, stone, 0, TOP + 0.6, (D + 1.2) / 2 - 0.18);
+  box(W + 1.2, 1.2, 0.35, stone, 0, TOP + 0.6, -(D + 1.2) / 2 + 0.18);
+  box(0.35, 1.2, D + 1.2, stone, (W + 1.2) / 2 - 0.18, TOP + 0.6, 0);
+  box(0.35, 1.2, D + 1.2, stone, -(W + 1.2) / 2 + 0.18, TOP + 0.6, 0);
+  box(8, 2.8, 6, stoneDark, 0, TOP + 1.4, -2);
+  box(W + 1.6, 0.4, 0.6, stoneDark, 0, TOP + 3.6, D / 2 + 0.4);
+  box(0.6, 3.6, 0.6, stoneDark, -(W / 2 + 0.5), TOP + 1.8, D / 2 + 0.4);
+  box(0.6, 3.6, 0.6, stoneDark, (W / 2 + 0.5), TOP + 1.8, D / 2 + 0.4);
+
+  // glass texture with mullions
+  const glassTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 256, 256);
+    g.fillStyle = '#a7aeb5';
+    for (let i = 1; i < 6; i++) g.fillRect(i * 256 / 6 - 2, 0, 4, 256);
+    g.fillRect(0, 54, 256, 4);
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+    return t;
+  })();
+
+  // units (each one is clickable)
+  const GLASS = 0x8fa5b6;
+  const unitMeshes = [];
+  units.forEach(u => {
+    const [sx, sz] = QUAD[u.letter];
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(UW, UH, UD),
+      new THREE.MeshStandardMaterial({ map: glassTex, color: GLASS, roughness: 0.25, metalness: 0.35, transparent: true, opacity: 0.95, emissive: 0x000000 })
+    );
+    m.position.set(sx * 6.5, GH + (u.floor - 1) * FH + FH / 2, sz * 4.5);
+    m.receiveShadow = true;
+    m.userData.unit = u;
+    u.mesh = m;
+    scene.add(m);
+    unitMeshes.push(m);
+  });
+
+  // selection outline
+  const selBox = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(UW + 0.25, UH + 0.15, UD + 0.25)),
+    new THREE.LineBasicMaterial({ color: 0xffe3ad, transparent: true })
+  );
+  selBox.visible = false;
+  scene.add(selBox);
+
+  /* ================= STATE + STYLING ================= */
+  let mode = 'status', filter = 'all', floorSel = 'all', hovered = null, selected = null;
+
+  function matchesFilter(u) {
+    const t = TYPES[u.type];
+    switch (filter) {
+      case 'available': return u.status === 'available';
+      case '2': return t.beds === 2;
+      case '3': return t.beds === 3;
+      case 'P': return u.type === 'P';
+      default: return true;
+    }
+  }
+  const isActive = u => (floorSel === 'all' || u.floor === floorSel) && matchesFilter(u);
+
+  function applyStyles() {
+    units.forEach(u => {
+      const m = u.mesh.material;
+      const active = isActive(u);
+      const col = mode === 'status' ? STATUS[u.status].hex : GLASS;
+      m.color.setHex(col);
+      m.emissive.setHex(mode === 'status' ? col : 0x2a3640);
+      let ei = mode === 'status' ? 0.22 : 0.12;
+      if (u === selected) ei = 0.6;
+      if (u === hovered) ei = 0.75;
+      m.emissiveIntensity = ei;
+      m.opacity = active ? (mode === 'status' ? 0.96 : 0.9) : 0.1;
+      m.depthWrite = active;
+      u.mesh.visible = true;
+    });
+  }
+
+  function updateCounts() {
+    const c = { available: 0, reserved: 0, sold: 0 };
+    units.forEach(u => c[u.status]++);
+    $('#cA').textContent = c.available;
+    $('#cR').textContent = c.reserved;
+    $('#cS').textContent = c.sold;
+  }
+
+  /* ================= CAMERA ================= */
+  const aspectScale = () => { const a = innerWidth / innerHeight; return a < 0.8 ? 1.85 : a < 1.2 ? 1.35 : 1; };
+  const HOME_T = new THREE.Vector3(0, 19, 0);
+  const homeCam = () => new THREE.Vector3(50, 30, 62).multiplyScalar(aspectScale()).setY(30 + (aspectScale() - 1) * 18);
+
+  let tween = null;
+  function flyTo(target, camPos, dur = 1100) {
+    tween = { t0: performance.now(), dur, fT: controls.target.clone(), tT: target, fC: camera.position.clone(), tC: camPos };
+  }
+  const ease = k => k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+
+  function resetView() { flyTo(HOME_T.clone(), homeCam()); }
+
+  function focusUnit(u) {
+    const p = u.mesh.position.clone();
+    const out = new THREE.Vector3(p.x, 0, p.z).normalize();
+    const dist = 34 * aspectScale();
+    const target = p.clone();
+    if (innerWidth <= 760) target.y -= 11; // keep the unit visible above the bottom sheet
+    flyTo(target, p.clone().add(out.multiplyScalar(dist)).setY(p.y + 9));
+  }
+
+  function focusFloor(f) {
+    const y = GH + (f - 0.5) * FH;
+    const dir = camera.position.clone().sub(controls.target).setY(0).normalize();
+    const dist = 52 * aspectScale();
+    flyTo(new THREE.Vector3(0, y, 0), new THREE.Vector3(dir.x * dist, y + 16, dir.z * dist));
+  }
+
+  camera.position.copy(homeCam());
+  controls.target.copy(HOME_T);
+
+  /* ================= UI ================= */
+  // floor rail
+  const rail = $('#floors');
+  rail.innerHTML = '<div class="lbl">الدور</div>' +
+    '<button data-floor="all" class="on">الكل</button>' +
+    Array.from({ length: NF }, (_, i) => NF - i).map(f => {
+      const has = units.some(u => u.floor === f && u.status === 'available');
+      return `<button data-floor="${f}" title="الدور ${f}">${f === NF ? 'PH' : f}${has ? '<span class="dot"></span>' : ''}</button>`;
+    }).join('');
+  rail.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    stopAuto();
+    const v = b.dataset.floor;
+    floorSel = v === 'all' ? 'all' : +v;
+    rail.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    applyStyles();
+    if (floorSel === 'all') resetView(); else focusFloor(floorSel);
+  });
+
+  // filters
+  $('#filters').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    filter = b.dataset.f;
+    $('#filters').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    applyStyles();
+  });
+
+  // mode
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+    applyStyles();
+  }));
+
+  $('#reset').addEventListener('click', () => {
+    floorSel = 'all'; filter = 'all';
+    rail.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.floor === 'all'));
+    $('#filters').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.f === 'all'));
+    closePanel();
+    applyStyles();
+    resetView();
+  });
+
+  // floor plans
+  const PLANS = {
+    2: { vb: '0 0 240 150', rooms: [[0, 0, 130, 90, 'المعيشة'], [0, 90, 70, 60, 'المطبخ'], [70, 90, 60, 60, 'دورة مياه'], [130, 0, 110, 80, 'غرفة النوم الرئيسية'], [130, 80, 110, 70, 'غرفة نوم']] },
+    3: { vb: '0 0 240 150', rooms: [[0, 0, 120, 90, 'المعيشة'], [0, 90, 60, 60, 'المطبخ'], [60, 90, 60, 60, 'دورة مياه'], [120, 0, 120, 70, 'الغرفة الرئيسية'], [120, 70, 60, 80, 'غرفة نوم'], [180, 70, 60, 80, 'غرفة نوم']] },
+    4: { vb: '0 0 240 180', terrace: true, rooms: [[0, 30, 110, 85, 'المعيشة'], [0, 115, 55, 65, 'المطبخ'], [55, 115, 55, 65, 'حمام'], [110, 30, 130, 60, 'الغرفة الرئيسية'], [110, 90, 43, 90, 'نوم'], [153, 90, 43, 90, 'نوم'], [196, 90, 44, 90, 'نوم']] }
+  };
+  function planSVG(beds) {
+    const p = PLANS[beds];
+    let s = `<svg viewBox="${p.vb}" role="img" aria-label="مخطط الوحدة">`;
+    if (p.terrace) s += `<rect x="1" y="1" width="238" height="27" rx="3" fill="rgba(63,191,127,.08)" stroke="rgba(244,239,230,.35)" stroke-dasharray="4 3"/><text x="120" y="18" text-anchor="middle" font-size="9.5" fill="#a9a196">سطح خاص</text>`;
+    p.rooms.forEach(([x, y, w, h, l], i) => {
+      s += `<rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${h - 2}" rx="2" fill="${i === 0 ? 'rgba(212,173,110,.12)' : 'rgba(255,255,255,.03)'}" stroke="rgba(244,239,230,.55)" stroke-width="1.2"/>`;
+      s += `<text x="${x + w / 2}" y="${y + h / 2 + 3}" text-anchor="middle" font-size="9.5" fill="#cfc7bb" font-family="IBM Plex Sans Arabic, sans-serif">${l}</text>`;
+    });
+    return s + '</svg>';
+  }
+
+  const fmt = n => n.toLocaleString('en-US');
+  const waLink = u => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`السلام عليكم، أنا مهتم بالوحدة ${u.code} في مشروع ربط 62 (${TYPES[u.type].name} · ${TYPES[u.type].area} م²). ممكن تفاصيل أكثر؟`)}`;
+  const WA_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3c-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3Z"/></svg>';
+
+  const panel = $('#panel');
+  function renderPanel(u) {
+    const t = TYPES[u.type], st = STATUS[u.status];
+    const floorName = u.type === 'P' ? 'الدور الأخير' : `الدور ${u.floor}`;
+    panel.innerHTML = `
+      <button class="close" aria-label="إغلاق">×</button>
+      <div class="ph">
+        <div><small>${floorName} · ${t.name}</small><h2>الوحدة ${u.code}</h2></div>
+        <span class="pill ${u.status}">${st.label}</span>
+      </div>
+      <div class="plan">${planSVG(t.beds)}<div class="cap">مخطط توضيحي</div></div>
+      <dl class="specs">
+        <div><dt>المساحة</dt><dd>${t.area} م²</dd></div>
+        <div><dt>غرف النوم</dt><dd>${t.beds}</dd></div>
+        <div><dt>دورات المياه</dt><dd>${t.baths}</dd></div>
+        <div><dt>الواجهة</dt><dd>${t.face}</dd></div>
+      </dl>
+      <div class="price">${u.status === 'sold'
+        ? '<span class="soldmsg">تم بيع هذه الوحدة</span>'
+        : `<small>السعر</small><strong>${fmt(u.price)} <em>ر.س</em></strong>`}</div>
+      ${u.status === 'sold'
+        ? '<button class="cta ghost" data-similar>اعرض وحدة مشابهة متاحة</button>'
+        : `<a class="cta" href="${waLink(u)}" target="_blank" rel="noopener">${WA_ICON}${u.status === 'reserved' ? 'سجّل اهتمامك عبر واتساب' : 'احجز عبر واتساب'}</a>`}
+      <div class="unav"><button data-step="-1">→ الوحدة السابقة</button><button data-step="1">الوحدة التالية ←</button></div>`;
+  }
+  panel.addEventListener('click', e => {
+    if (e.target.closest('.close')) return closePanel();
+    const step = e.target.closest('[data-step]');
+    if (step) {
+      const list = units.filter(isActive);
+      const pool = list.length ? list : units;
+      let i = pool.indexOf(selected);
+      i = (i + +step.dataset.step + pool.length) % pool.length;
+      return select(pool[i]);
+    }
+    if (e.target.closest('[data-similar]')) {
+      const beds = TYPES[selected.type].beds;
+      const cands = units.filter(u => u.status === 'available' && TYPES[u.type].beds === beds);
+      if (cands.length) {
+        cands.sort((a, b) => Math.abs(a.floor - selected.floor) - Math.abs(b.floor - selected.floor));
+        select(cands[0]);
+      }
+    }
+  });
+
+  function select(u) {
+    selected = u;
+    selBox.position.copy(u.mesh.position);
+    selBox.visible = true;
+    renderPanel(u);
+    panel.hidden = false;
+    applyStyles();
+    focusUnit(u);
+  }
+  function closePanel() {
+    selected = null;
+    selBox.visible = false;
+    panel.hidden = true;
+    applyStyles();
+  }
+
+  /* ================= PICKING ================= */
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), tip = $('#tip'), hint = $('#hint');
+  const el = renderer.domElement;
+  let down = null, pointer = null, needsPick = false;
+
+  function pick(x, y) {
+    ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObjects(unitMeshes.filter(m => isActive(m.userData.unit)), false)[0];
+    return hit ? hit.object.userData.unit : null;
+  }
+  function setHover(u) {
+    if (u === hovered) return;
+    hovered = u;
+    el.style.cursor = u ? 'pointer' : 'grab';
+    if (u) {
+      const st = STATUS[u.status];
+      tip.innerHTML = `<i style="background:${st.css}"></i>الوحدة ${u.code} · ${st.label} · ${TYPES[u.type].area} م²`;
+      tip.classList.add('show');
+    } else tip.classList.remove('show');
+    applyStyles();
+  }
+  function stopAuto() {
+    controls.autoRotate = false;
+    hint.classList.add('gone');
+  }
+
+  el.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; stopAuto(); });
+  el.addEventListener('pointermove', e => {
+    pointer = { x: e.clientX, y: e.clientY, type: e.pointerType };
+    needsPick = true;
+    tip.style.left = e.clientX + 'px';
+    tip.style.top = e.clientY + 'px';
+  });
+  el.addEventListener('pointerup', e => {
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6) {
+      const u = pick(e.clientX, e.clientY);
+      if (u) select(u);
+      else if (selected) closePanel();
+    }
+    down = null;
+  });
+  el.addEventListener('pointerleave', () => setHover(null));
+  el.addEventListener('wheel', stopAuto, { passive: true });
+  addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  /* ================= LOOP ================= */
+  function tick(now) {
+    requestAnimationFrame(tick);
+    if (tween) {
+      const k = Math.min(1, (now - tween.t0) / tween.dur), e = ease(k);
+      controls.target.lerpVectors(tween.fT, tween.tT, e);
+      camera.position.lerpVectors(tween.fC, tween.tC, e);
+      if (k >= 1) tween = null;
+    }
+    if (needsPick && !down && pointer && pointer.type === 'mouse') {
+      needsPick = false;
+      setHover(pick(pointer.x, pointer.y));
+    }
+    if (selBox.visible) selBox.material.opacity = 0.6 + 0.4 * Math.sin(now / 260);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  updateCounts();
+  applyStyles();
+  requestAnimationFrame(tick);
+  setTimeout(() => loading.classList.add('done'), 300);
+  setTimeout(() => hint.classList.add('gone'), 9000);
+})();
+</script>
+</body>
+</html>
