@@ -25,3 +25,8 @@ Without them each build gets a temporary key, so uninstall the old version befor
 
 Bundled fonts are under the SIL Open Font License: Amiri, Amiri Quran, Aref Ruqaa, Noto Kufi Arabic, Reem Kufi.
 Other fonts (e.g. DecoType Thuluth) are not bundled; import them in Settings.
+
+## Lead Agent (AI automation agency)
+
+`lead-agent/` is a separate Node.js project: an agent that finds local-business leads (emails, phones,
+websites, social pages) with a phone-installable control app. See [lead-agent/README.md](lead-agent/README.md).

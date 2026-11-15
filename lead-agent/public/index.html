@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lead Agent</title>
+  <meta name="description" content="Find local business leads: emails, phones, websites and social pages.">
+  <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Leads">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="login" class="login" hidden>
+    <form id="login-form" class="login-card">
+      <img src="icons/icon.svg" alt="" width="56" height="56">
+      <h1>Lead Agent</h1>
+      <p class="muted">Sign in to control your agent.</p>
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Sign in</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </div>
+
+  <div id="app" hidden>
+    <header class="top">
+      <h1 id="title">Find leads</h1>
+      <span id="badges" class="badges"></span>
+    </header>
+
+    <main>
+      <!-- HUNT -->
+      <section id="view-hunt" class="view">
+        <form id="hunt-form" class="card">
+          <label>What kind of business?
+            <select id="category"></select>
+          </label>
+          <label>…or your own keyword
+            <input id="keyword" placeholder="e.g. physiotherapy, wedding planner" autocomplete="off">
+          </label>
+          <label>Where?
+            <input id="location" placeholder="City or neighbourhood, e.g. Jeddah" required autocomplete="off">
+          </label>
+          <div class="row">
+            <label class="grow">How many
+              <input id="limit" type="number" min="1" max="200" value="30" inputmode="numeric">
+            </label>
+            <label class="grow">Source
+              <select id="source"></select>
+            </label>
+          </div>
+          <label class="check" id="ai-row"><input type="checkbox" id="use-ai" checked> Score leads with Claude</label>
+          <button class="btn primary big" type="submit" id="hunt-btn">Start hunting</button>
+          <p id="hunt-error" class="error" role="alert"></p>
+        </form>
+
+        <div id="stats" class="stats"></div>
+
+        <h2 class="section-title">Recent hunts</h2>
+        <div id="hunts" class="list"></div>
+      </section>
+
+      <!-- LEADS -->
+      <section id="view-leads" class="view" hidden>
+        <div class="filters">
+          <input id="search" type="search" placeholder="Search leads" autocomplete="off">
+          <div class="chips" id="filter-chips">
+            <button class="chip on" data-has="">All</button>
+            <button class="chip" data-has="email">Has email</button>
+            <button class="chip" data-has="phone">Has phone</button>
+            <button class="chip" data-has="social">Has social</button>
+          </div>
+          <div class="row">
+            <select id="status-filter" class="grow"><option value="">Any status</option></select>
+            <select id="sort" class="grow">
+              <option value="new">Newest first</option>
+              <option value="score">Best score first</option>
+            </select>
+          </div>
+          <div id="hunt-filter" class="hunt-filter" hidden></div>
+        </div>
+        <p id="lead-count" class="muted small"></p>
+        <div id="leads" class="list"></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="view-more" class="view" hidden>
+        <div class="card">
+          <h2>Export</h2>
+          <p class="muted">Download leads as a spreadsheet (CSV). Uses the filters on the Leads tab.</p>
+          <button class="btn" id="export">Download CSV</button>
+        </div>
+        <div class="card">
+          <h2>Agent setup</h2>
+          <ul id="setup" class="setup"></ul>
+        </div>
+        <div class="card">
+          <h2>Install on your phone</h2>
+          <p class="muted"><b>iPhone:</b> open this page in Safari → Share → <i>Add to Home Screen</i>.<br>
+          <b>Android:</b> Chrome menu ⋮ → <i>Install app</i> / <i>Add to Home screen</i>.</p>
+          <button class="btn" id="install" hidden>Install app</button>
+        </div>
+        <button class="btn ghost" id="logout">Sign out</button>
+      </section>
+    </main>
+
+    <nav class="tabs">
+      <button data-view="hunt" class="on"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Hunt</button>
+      <button data-view="leads"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Leads</button>
+      <button data-view="more"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>More</button>
+    </nav>
+  </div>
+
+  <dialog id="lead-dialog" class="sheet"><div id="lead-detail"></div></dialog>
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

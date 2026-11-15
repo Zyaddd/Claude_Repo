@@ -1,0 +1,16 @@
+{
+  "name": "lead-agent",
+  "version": "1.0.0",
+  "description": "Finds local-business leads (emails, phones, websites, social pages) and is controlled from an installable phone web app.",
+  "type": "module",
+  "main": "server.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "zod": "^4.1.0"
+  }
+}
