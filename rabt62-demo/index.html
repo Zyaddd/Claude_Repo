@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ربط 62 · عرض ثلاثي الأبعاد</title>
+<title>Rabt 62 3D Concept</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
+  color-scheme:dark;
   --bg:#14161c;
   --panel:rgba(18,20,26,.82);
   --panel-solid:#16181f;
@@ -46,7 +47,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 /* ---------- header ---------- */
 .top{
-  position:fixed;top:16px;left:16px;right:16px;
+  position:fixed;top:calc(16px + env(safe-area-inset-top, 0px));left:16px;right:16px;
   display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
   pointer-events:none;z-index:5;
 }
@@ -114,7 +115,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   padding:18px;z-index:6;
   transition:opacity .25s, transform .25s;
 }
-.panel[hidden]{display:block;opacity:0;transform:translateX(-12px);pointer-events:none}
+.panel:not(.open){opacity:0;transform:translateX(-12px);pointer-events:none;visibility:hidden}
 .panel .close{
   position:absolute;top:12px;left:12px;width:30px;height:30px;border-radius:9px;
   font-size:20px;line-height:1;color:var(--muted);background:rgba(255,255,255,.06);
@@ -171,7 +172,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 }
 #hint.gone{opacity:0;pointer-events:none}
 .disclaimer{
-  position:fixed;bottom:6px;right:16px;z-index:3;font-size:10.5px;color:rgba(244,239,230,.55);
+  position:fixed;bottom:6px;right:16px;z-index:3;font-size:10.5px;color:rgba(244,239,230,.75);
 }
 #fail{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px;z-index:10}
 #fail[hidden]{display:none}
@@ -205,8 +206,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     padding:18px 16px calc(18px + env(safe-area-inset-bottom));
     background:var(--panel-solid);
   }
-  .panel[hidden]{transform:translateY(24px)}
-  .disclaimer{display:none}
+  .panel:not(.open){transform:translateY(24px)}
+  .disclaimer{right:16px;left:16px;bottom:4px;text-align:center;font-size:9.5px}
+  .bottom{bottom:20px}
   .plan svg{max-height:120px}
   .plan{margin:10px 0}
   .ph h2{font-size:21px}
@@ -225,7 +227,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       <h1>ربط 62</h1>
       <p>شرق الرياض · 40 وحدة سكنية</p>
     </div>
-    <span class="badge">عرض تجريبي</span>
+    <span class="badge">مقترح تصميم</span>
   </div>
   <div class="actions glass">
     <div class="seg" role="group" aria-label="طريقة العرض">
@@ -242,7 +244,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 <nav class="floors glass" id="floors" aria-label="الأدوار"></nav>
 
-<aside class="panel glass" id="panel" hidden aria-live="polite"></aside>
+<aside class="panel glass" id="panel" aria-live="polite"></aside>
 
 <footer class="bottom">
   <div class="filters glass" id="filters">
@@ -259,7 +261,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   </div>
 </footer>
 
-<p class="disclaimer">نموذج مبدئي لأغراض العرض · التصميم والأسعار والمساحات توضيحية</p>
+<p class="disclaimer">مقترح تصميم غير رسمي مقدَّم لمشروع ربط 62 · ليس الموقع الرسمي للمطوّر · التصميم والأسعار والمساحات توضيحية</p>
 <div id="tip"></div>
 <div id="fail" hidden><p>متصفحك لا يدعم العرض ثلاثي الأبعاد (WebGL).<br>جرّب فتح الصفحة من متصفح حديث.</p></div>
 
@@ -681,14 +683,14 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     selBox.position.copy(u.mesh.position);
     selBox.visible = true;
     renderPanel(u);
-    panel.hidden = false;
+    panel.classList.add('open');
     applyStyles();
     focusUnit(u);
   }
   function closePanel() {
     selected = null;
     selBox.visible = false;
-    panel.hidden = true;
+    panel.classList.remove('open');
     applyStyles();
   }
 
