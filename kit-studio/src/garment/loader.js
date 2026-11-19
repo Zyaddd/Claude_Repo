@@ -6,7 +6,14 @@ export async function loadGarments(url, onProgress) {
   if (!res.ok) throw new Error(`Could not load ${url}`);
   const total = Number(res.headers.get('content-length')) || 0;
   let buf;
-  if (res.body && total && onProgress) {
+  if (url.endsWith('.b64.txt')) {
+    // Hosts that only serve text get the mesh as base64.
+    const bin = atob((await res.text()).trim());
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    buf = bytes.buffer;
+    onProgress?.(1);
+  } else if (res.body && total && onProgress) {
     const reader = res.body.getReader();
     const parts = [];
     let got = 0;

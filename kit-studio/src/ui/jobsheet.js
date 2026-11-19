@@ -40,7 +40,7 @@ function artworkImage(canvas, background) {
   return { url: out.toDataURL('image/png'), widthCm: (x1 - x0) / pxPerCm, heightCm: (y1 - y0) / pxPerCm };
 }
 
-export async function openJobSheet({ design: d, kit, info, front, back, artwork, config }) {
+export async function openJobSheet({ demoHost = false, design: d, kit, info, front, back, artwork, config }) {
   const ref = orderRef();
   const qr = await QRCode.toDataURL(d.link, { margin: 1, width: 240 });
   const art = artworkImage(artwork, kit.base);
@@ -79,7 +79,7 @@ export async function openJobSheet({ design: d, kit, info, front, back, artwork,
     <div class="sheet-overlay" role="dialog" aria-label="Print job sheet">
       <div class="sheet-toolbar">
         <button type="button" class="close">Close</button>
-        <button type="button" class="print">Print / Save PDF</button>
+        ${demoHost ? '<span class="sheet-note">Printing is switched on when installed on the shop’s website.</span>' : '<button type="button" class="print">Print / Save PDF</button>'}
       </div>
       <article class="sheet">
         <div class="s-head">
@@ -119,7 +119,7 @@ export async function openJobSheet({ design: d, kit, info, front, back, artwork,
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', onKey);
   overlay.querySelector('.close').addEventListener('click', close);
-  overlay.querySelector('.print').addEventListener('click', () => window.print());
+  overlay.querySelector('.print')?.addEventListener('click', () => window.print());
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   overlay.querySelector('.close').focus();
 }

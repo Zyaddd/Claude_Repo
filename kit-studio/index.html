@@ -173,6 +173,14 @@
       </form>
     </dialog>
 
+    <dialog id="imageDialog" class="dialog">
+      <form method="dialog">
+        <header><h3>Your kit image</h3><button class="icon-btn" aria-label="Close">✕</button></header>
+        <img id="imagePreview" class="image-preview" alt="Front and back of your kit" />
+        <p class="note">Press and hold (or right-click) the image to save it.</p>
+      </form>
+    </dialog>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div id="sheetRoot"></div>
     <script type="module" src="/src/main.js"></script>

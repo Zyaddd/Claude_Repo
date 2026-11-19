@@ -110,7 +110,11 @@ const isMobile = matchMedia('(pointer: coarse)').matches;
 const studio = new Studio($('#viewer'));
 let model = null;
 
+// Demo build for the hosted preview: no printing, downloads or long hash links there.
+const DEMO_HOST = import.meta.env.VITE_ARTIFACT === '1';
+
 function syncUrl() {
+  if (DEMO_HOST) return;
   const h = encodeDesign(state);
   history.replaceState(null, '', `${location.pathname}${location.search}#${h}`);
 }
@@ -475,10 +479,11 @@ $('#sheetBtn').addEventListener('click', async () => {
   track('job_sheet_opened');
   const front = studio.snapshot({ width: 600, height: 760, view: 'front' });
   const back = studio.snapshot({ width: 600, height: 760, view: 'back' });
-  await openJobSheet({ design: designSummary(), kit: kitById(state.kitId), info: lastPrintInfo, front, back, artwork: model.canvases.back, config: CONFIG });
+  await openJobSheet({ demoHost: DEMO_HOST, design: designSummary(), kit: kitById(state.kitId), info: lastPrintInfo, front, back, artwork: model.canvases.back, config: CONFIG });
 });
 $('#shareBtn').addEventListener('click', async () => {
   syncUrl();
+  if (DEMO_HOST) { toast('Share links are switched on when installed on the shop’s website.'); return; }
   const r = await shareDesign(location.href, `${CONFIG.shopName}: my custom kit`);
   if (r === 'copied') toast('Link copied. Anyone with it sees this exact design.');
   track('design_shared');
@@ -488,7 +493,9 @@ $('#imageBtn').addEventListener('click', async () => {
   const d = designSummary();
   const back = studio.snapshot({ width: 900, height: 1100, view: 'back' });
   const front = studio.snapshot({ width: 900, height: 1100, view: 'front' });
-  await saveImage({ front, back, title: d.name ? `${d.name} ${d.number}` : `${d.club}`, subtitle: `${d.club} · ${kit.type}`, shop: CONFIG.shopName, accent: CONFIG.accent });
+  const opts = { front, back, title: d.name ? `${d.name} ${d.number}` : `${d.club}`, subtitle: `${d.club} · ${kit.type}`, shop: CONFIG.shopName, accent: CONFIG.accent, previewOnly: DEMO_HOST };
+  const url = await saveImage(opts);
+  if (url) { $('#imagePreview').src = url; $('#imageDialog').showModal(); }
   track('image_saved');
 });
 
@@ -539,7 +546,7 @@ async function boot() {
     document.fonts.load('600 40px "Barlow Condensed"'),
     document.fonts.load('700 40px Changa', 'ك'),
   ]).catch(() => {});
-  const geos = await loadGarments(`${import.meta.env.BASE_URL}garments.bin`, (p) => ($('#loaderBar').style.width = `${Math.round(p * 100)}%`));
+  const geos = await loadGarments(`${import.meta.env.BASE_URL}${DEMO_HOST ? 'garments.b64.txt' : 'garments.bin'}`, (p) => ($('#loaderBar').style.width = `${Math.round(p * 100)}%`));
   await fontsReady;
   // Repaint thumbnails & samples once fonts have arrived.
   $('#kitGrid').innerHTML = '';

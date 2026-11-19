@@ -55,7 +55,7 @@ export async function shareDesign(url, title) {
 const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 
 // Square social image: front and back side by side with the shop branding.
-export async function saveImage({ front, back, title, subtitle, shop, accent }) {
+export async function saveImage({ front, back, title, subtitle, shop, accent, previewOnly = false }) {
   const [fi, bi] = await Promise.all([loadImg(front), loadImg(back)]);
   const W = 1600, H = 1600;
   const c = document.createElement('canvas');
@@ -85,6 +85,7 @@ export async function saveImage({ front, back, title, subtitle, shop, accent }) 
   ctx.fillStyle = accent;
   ctx.font = '600 26px Inter, sans-serif';
   ctx.fillText('Designed in Kit Studio', W - 80, H - 110);
+  if (previewOnly) return c.toDataURL('image/png');
   const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
   const file = new File([blob], 'my-kit.png', { type: 'image/png' });
   if (navigator.canShare && navigator.canShare({ files: [file] }) && matchMedia('(pointer: coarse)').matches) {
