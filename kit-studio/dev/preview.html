@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#2a2d33}#v{width:100vw;height:100vh}</style></head>
+<body><div id="v"></div>
+<script type="module">
+import '@fontsource/oswald/600.css'; import '@fontsource/graduate'; import '@fontsource/barlow-condensed/700.css'; import '@fontsource/russo-one'; import '@fontsource/saira-condensed/800.css';
+import { Studio } from '/src/render/scene.js';
+import { loadGarments } from '/src/garment/loader.js';
+import { KitModel } from '/src/render/kitModel.js';
+import { KITS } from '/src/kits/kits.js';
+const q = new URLSearchParams(location.search);
+await document.fonts.load('400 40px Graduate'); await document.fonts.load('600 40px Oswald'); await document.fonts.load('700 40px "Barlow Condensed"');
+const studio = new Studio(document.getElementById('v'));
+const geos = await loadGarments('/garments.bin');
+const km = new KitModel(studio, geos);
+km.setKit(KITS.find(k=>k.id===(q.get('kit')||'northbridge-home')), q.get('patch')||'league');
+km.setDesign({ name: q.get('name') ?? 'MARLOWE', number: q.get('num') ?? '9', font: q.get('font')||'block', shortsNumber: true, arched: q.get('arc')==='1' });
+km.setLabel('Demo Sports', 'M');
+studio.turntable.applyView(q.get('view')||'front', true);
+if (q.get('yaw')) { studio.turntable.yaw = parseFloat(q.get('yaw')); studio.turntable._apply(); }
+if (q.get('pitch')) { studio.turntable.pitch = parseFloat(q.get('pitch')); studio.turntable._apply(); }
+if (q.get('zoom')) { studio.turntable.zoom = parseFloat(q.get('zoom')); studio.turntable._apply(); }
+if (q.get('fy')) { studio.turntable.focusY = parseFloat(q.get('fy')); studio.turntable._apply(); }
+studio.turntable.autoRotate=false;
+if (q.get('debug')) { km.shirtMat.userData.uniforms.uDebug.value = +q.get('debug'); km.shortsMat.userData.uniforms.uDebug.value = +q.get('debug'); }
+window.__ready = true;
+</script></body></html>
