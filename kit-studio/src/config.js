@@ -4,6 +4,8 @@
 // For demos you can also override a few values in the URL, e.g.
 //   ?shop=Jersey%20House&accent=%23ff3d6e&currency=SAR
 
+import { getLang } from './i18n.js';
+
 const DEFAULTS = {
   shopName: 'Demo Sports',
   tagline: 'Custom Kit Studio',
@@ -57,5 +59,11 @@ function fromUrl() {
 export const CONFIG = { ...DEFAULTS, ...(window.KIT_STUDIO_CONFIG || {}), ...fromUrl() };
 CONFIG.prices = { ...DEFAULTS.prices, ...(window.KIT_STUDIO_CONFIG?.prices || {}) };
 
-const fmt = new Intl.NumberFormat(CONFIG.locale, { style: 'currency', currency: CONFIG.currency });
-export const money = (v) => fmt.format(v);
+// Prices follow the interface language: Arabic uses Arabic currency names with
+// Western digits (common in Gulf retail).
+const formatters = {};
+export const money = (v) => {
+  const locale = getLang() === 'ar' ? 'ar-u-nu-latn' : CONFIG.locale;
+  formatters[locale] ||= new Intl.NumberFormat(locale, { style: 'currency', currency: CONFIG.currency });
+  return formatters[locale].format(v);
+};

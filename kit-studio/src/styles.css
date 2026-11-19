@@ -282,7 +282,7 @@ input.invalid { border-color: var(--danger); }
 .dialog h3 { margin: 0; font-family: var(--font-display); font-size: 22px; text-transform: uppercase; }
 .icon-btn { border: 0; background: var(--card); width: 34px; height: 34px; border-radius: 50%; }
 .dialog table { width: 100%; border-collapse: collapse; }
-.dialog th, .dialog td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--line); }
+.dialog th, .dialog td { text-align: start; padding: 9px 6px; border-bottom: 1px solid var(--line); }
 .dialog th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
 .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
 .dialog-actions .btn-ghost { min-height: 52px; flex-direction: row; justify-content: center; font-size: 14px; }
@@ -356,7 +356,7 @@ input.invalid { border-color: var(--danger); }
 }
 .sheet h1 { font-family: var(--font-display); font-size: 30px; text-transform: uppercase; margin: 0; letter-spacing: 0.02em; }
 .sheet .s-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #111; padding-bottom: 12px; margin-bottom: 16px; gap: 16px; }
-.sheet .s-meta { text-align: right; line-height: 1.6; }
+.sheet .s-meta { text-align: end; line-height: 1.6; }
 .sheet .s-ref { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
 .sheet .s-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .sheet table { width: 100%; border-collapse: collapse; }
@@ -386,4 +386,49 @@ input.invalid { border-color: var(--danger); }
 @media (max-width: 600px) {
   .sheet { padding: 18px 16px; }
   .sheet .s-grid, .sheet .s-foot { grid-template-columns: 1fr; }
+}
+
+/* ---------- language switch ---------- */
+.top-right { display: flex; align-items: center; gap: 16px; }
+.lang-switch { display: flex; gap: 2px; padding: 3px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; }
+.lang-switch button {
+  border: 0; background: transparent; color: var(--muted);
+  min-height: 30px; min-width: 44px; padding: 0 10px; border-radius: 999px;
+  font-size: 13px; font-weight: 700;
+}
+.lang-switch button[lang='ar'] { font-family: 'Tajawal', var(--font-ui); font-size: 14px; }
+.lang-switch button.active { background: var(--accent); color: var(--accent-ink); }
+.lang-switch button:hover:not(.active) { color: var(--text); }
+
+/* ---------- Arabic / right-to-left ---------- */
+:root[lang='ar'] {
+  --font-ui: 'Tajawal', 'Inter', system-ui, sans-serif;
+  --font-display: 'Tajawal', 'Barlow Condensed', sans-serif;
+}
+:root[lang='ar'] body { font-size: 15px; }
+/* Letter-spacing and upper-casing break joined Arabic letters. */
+:root[lang='ar'] .step-head h2,
+:root[lang='ar'] .btn-primary,
+:root[lang='ar'] .kit-club,
+:root[lang='ar'] .dialog h3,
+:root[lang='ar'] .brand-tag { letter-spacing: 0; text-transform: none; }
+:root[lang='ar'] .step-head h2 { font-weight: 700; font-size: 20px; }
+:root[lang='ar'] .btn-primary { font-weight: 700; font-size: 19px; }
+/* Prices keep the sporty condensed digits; Arabic currency names fall back to Tajawal. */
+:root[lang='ar'] .top-total strong,
+:root[lang='ar'] .total-row strong,
+:root[lang='ar'] .mobile-bar strong { font-family: 'Barlow Condensed', 'Tajawal', sans-serif; }
+#nameInput.ar-text { letter-spacing: 0; text-transform: none; font-family: 'Tajawal', var(--font-ui); }
+
+[dir='rtl'] .panel { border-left: 0; border-right: 1px solid var(--line); }
+[dir='rtl'] select { background-position: left 12px center; padding-right: 14px; padding-left: 38px; }
+[dir='rtl'] .switch::after { left: auto; right: 3px; }
+[dir='rtl'] .toggle input:checked + .switch::after { transform: translateX(-16px); }
+[dir='rtl'] .toggle em { margin-left: 0; margin-right: 4px; }
+[dir='rtl'] .sheet .s-head h1 { letter-spacing: 0; text-transform: none; }
+[dir='rtl'] .sheet h2 { letter-spacing: 0; }
+
+@media (max-width: 760px) {
+  [dir='rtl'] .panel { border-right: 0; }
+  .top-right { gap: 10px; }
 }

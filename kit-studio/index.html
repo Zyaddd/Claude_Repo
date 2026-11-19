@@ -14,13 +14,19 @@
           <span class="brand-mark" aria-hidden="true"></span>
           <span class="brand-name" data-bind="shopName">Demo Sports</span>
           <span class="brand-sep">/</span>
-          <span class="brand-tag" data-bind="tagline">Custom Kit Studio</span>
+          <span class="brand-tag" data-i18n="tagline">Custom Kit Studio</span>
         </div>
-        <div class="top-total"><span>Total</span> <strong data-bind="total">£0.00</strong></div>
+        <div class="top-right">
+          <div class="lang-switch" role="group" data-i18n-aria="langLabel" aria-label="Language">
+            <button type="button" data-lang="en" lang="en">EN</button>
+            <button type="button" data-lang="ar" lang="ar">عربي</button>
+          </div>
+          <div class="top-total"><span data-i18n="total">Total</span> <strong data-bind="total">£0.00</strong></div>
+        </div>
       </header>
 
       <main class="layout">
-        <section class="stage" aria-label="3D kit preview">
+        <section class="stage" data-i18n-aria="stageLabel" aria-label="3D kit preview">
           <div id="viewer" class="viewer"></div>
           <div class="stage-top">
             <div class="kit-title">
@@ -34,22 +40,22 @@
           <div class="stage-bottom">
             <div class="hint" id="hint">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14.9-4M20 12a8 8 0 0 1-14.9 4" /><path d="M19 3v5h-5M5 21v-5h5" /></svg>
-              <span>Drag to rotate 360° · pinch or scroll to zoom</span>
+              <span data-i18n="hint">Drag to rotate 360° · pinch or scroll to zoom</span>
             </div>
-            <div class="views" role="group" aria-label="Camera views">
-              <button type="button" data-view="front" class="active">Front</button>
-              <button type="button" data-view="back">Back</button>
-              <button type="button" data-view="side">Side</button>
-              <button type="button" data-view="spin" title="Auto-rotate">
+            <div class="views" role="group" data-i18n-aria="view.group" aria-label="Camera views">
+              <button type="button" data-view="front" class="active" data-i18n="view.front">Front</button>
+              <button type="button" data-view="back" data-i18n="view.back">Back</button>
+              <button type="button" data-view="side" data-i18n="view.side">Side</button>
+              <button type="button" data-view="spin" data-i18n-title="view.spinTitle" title="Auto-rotate">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v6h-6" /></svg>
-                360°
+                <span>360°</span>
               </button>
             </div>
           </div>
           <div class="loader" id="loader">
             <div class="loader-inner">
               <div class="loader-shirt" aria-hidden="true"></div>
-              <div class="loader-text">Preparing your 3D kit…</div>
+              <div class="loader-text" data-i18n="loading">Preparing your 3D kit…</div>
               <div class="loader-bar"><span id="loaderBar"></span></div>
             </div>
           </div>
@@ -57,127 +63,127 @@
 
         <aside class="panel" id="panel">
           <section class="step" id="stepKit">
-            <header class="step-head"><span class="step-num">1</span><h2>Choose your kit</h2></header>
+            <header class="step-head"><span class="step-num">1</span><h2 data-i18n="step.kit">Choose your kit</h2></header>
             <div class="chips" role="tablist" id="kitFilter">
-              <button type="button" class="chip active" data-filter="all">All</button>
-              <button type="button" class="chip" data-filter="Home">Home</button>
-              <button type="button" class="chip" data-filter="Away">Away</button>
+              <button type="button" class="chip active" data-filter="all" data-i18n="filter.all">All</button>
+              <button type="button" class="chip" data-filter="Home" data-i18n="type.Home">Home</button>
+              <button type="button" class="chip" data-filter="Away" data-i18n="type.Away">Away</button>
             </div>
             <div class="kit-grid" id="kitGrid"></div>
           </section>
 
           <section class="step" id="stepPrint">
-            <header class="step-head"><span class="step-num">2</span><h2>Name &amp; number</h2></header>
+            <header class="step-head"><span class="step-num">2</span><h2 data-i18n="step.print">Name &amp; number</h2></header>
             <label class="field">
-              <span class="field-label">Pick a player <em>(optional)</em></span>
-              <select id="playerSelect"><option value="">Your own name &amp; number</option></select>
+              <span class="field-label"><span data-i18n="pickPlayer">Pick a player</span> <em data-i18n="optional">(optional)</em></span>
+              <select id="playerSelect"><option value="" data-i18n="ownName">Your own name &amp; number</option></select>
             </label>
             <div class="row">
               <label class="field grow">
-                <span class="field-label">Name <span class="counter" id="nameCounter">0/12</span></span>
-                <input id="nameInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. SMITH" maxlength="16" />
+                <span class="field-label"><span data-i18n="name">Name</span> <span class="counter" id="nameCounter">0/12</span></span>
+                <input id="nameInput" type="text" dir="auto" autocomplete="off" autocapitalize="characters" spellcheck="false" data-i18n-placeholder="namePh" placeholder="e.g. SMITH" maxlength="16" />
               </label>
               <label class="field num">
-                <span class="field-label">Number</span>
-                <input id="numberInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="10" maxlength="2" />
+                <span class="field-label" data-i18n="number">Number</span>
+                <input id="numberInput" type="text" dir="ltr" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="10" maxlength="2" />
               </label>
             </div>
             <p class="field-msg" id="printMsg" role="status" aria-live="polite"></p>
             <div class="field">
-              <span class="field-label">Lettering style</span>
+              <span class="field-label" data-i18n="lettering">Lettering style</span>
               <div class="font-grid" id="fontGrid"></div>
             </div>
             <div class="toggles">
-              <label class="toggle"><input type="checkbox" id="arched" /><span class="switch"></span><span>Arched name</span></label>
+              <label class="toggle"><input type="checkbox" id="arched" /><span class="switch"></span><span data-i18n="arched">Arched name</span></label>
             </div>
-            <p class="note">Arabic names are supported. Type in Arabic script and it prints right-to-left.</p>
+            <p class="note" data-i18n="arabicNote">Arabic names are supported. Type in Arabic script and it prints right-to-left.</p>
           </section>
 
           <section class="step" id="stepSize">
-            <header class="step-head"><span class="step-num">3</span><h2>Size</h2>
-              <button type="button" class="link" id="sizeGuideBtn">Size guide</button></header>
+            <header class="step-head"><span class="step-num">3</span><h2 data-i18n="step.size">Size</h2>
+              <button type="button" class="link" id="sizeGuideBtn" data-i18n="sizeGuide">Size guide</button></header>
             <div class="seg" id="sizeGroup">
-              <button type="button" class="active" data-group="adult">Adult</button>
-              <button type="button" data-group="kids">Kids</button>
+              <button type="button" class="active" data-group="adult" data-i18n="group.adult">Adult</button>
+              <button type="button" data-group="kids" data-i18n="group.kids">Kids</button>
             </div>
             <div class="size-grid" id="sizeGrid"></div>
           </section>
 
           <section class="step" id="stepExtras">
-            <header class="step-head"><span class="step-num">4</span><h2>Extras</h2></header>
+            <header class="step-head"><span class="step-num">4</span><h2 data-i18n="step.extras">Extras</h2></header>
             <div class="field">
-              <span class="field-label">Sleeve patches</span>
+              <span class="field-label" data-i18n="patches">Sleeve patches</span>
               <div class="seg seg-3" id="patchSeg">
-                <button type="button" class="active" data-patch="none">None</button>
-                <button type="button" data-patch="league">League</button>
-                <button type="button" data-patch="champions">Champions</button>
+                <button type="button" class="active" data-patch="none" data-i18n="patch.none">None</button>
+                <button type="button" data-patch="league" data-i18n="patch.league">League</button>
+                <button type="button" data-patch="champions" data-i18n="patch.champions">Champions</button>
               </div>
             </div>
             <div class="toggles">
-              <label class="toggle"><input type="checkbox" id="addShorts" /><span class="switch"></span><span>Add matching shorts <em data-bind="shortsPrice"></em></span></label>
-              <label class="toggle"><input type="checkbox" id="shortsNumber" /><span class="switch"></span><span>Number on shorts <em data-bind="shortsNumberPrice"></em></span></label>
+              <label class="toggle"><input type="checkbox" id="addShorts" /><span class="switch"></span><span><span data-i18n="addShorts">Add matching shorts</span> <em data-bind="shortsPrice"></em></span></label>
+              <label class="toggle"><input type="checkbox" id="shortsNumber" /><span class="switch"></span><span><span data-i18n="shortsNumber">Number on shorts</span> <em data-bind="shortsNumberPrice"></em></span></label>
             </div>
           </section>
 
           <section class="step summary" id="stepSummary">
-            <header class="step-head"><span class="step-num">5</span><h2>Your order</h2></header>
+            <header class="step-head"><span class="step-num">5</span><h2 data-i18n="step.order">Your order</h2></header>
             <ul class="lines" id="priceLines"></ul>
             <div class="qty-row">
-              <span>Quantity</span>
-              <div class="qty">
-                <button type="button" id="qtyMinus" aria-label="Decrease quantity">−</button>
+              <span data-i18n="qty">Quantity</span>
+              <div class="qty" dir="ltr">
+                <button type="button" id="qtyMinus" data-i18n-aria="decQty" aria-label="Decrease quantity">−</button>
                 <output id="qty">1</output>
-                <button type="button" id="qtyPlus" aria-label="Increase quantity">+</button>
+                <button type="button" id="qtyPlus" data-i18n-aria="incQty" aria-label="Increase quantity">+</button>
               </div>
             </div>
-            <div class="total-row"><span>Total</span><strong data-bind="total">£0.00</strong></div>
-            <button type="button" class="btn-primary" id="addToBasket">Add to basket</button>
+            <div class="total-row"><span data-i18n="total">Total</span><strong data-bind="total">£0.00</strong></div>
+            <button type="button" class="btn-primary" id="addToBasket" data-i18n="addToBasket">Add to basket</button>
             <div class="actions">
               <button type="button" class="btn-ghost" id="shareBtn">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5" /></svg>Share design
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5" /></svg><span data-i18n="share">Share design</span>
               </button>
               <button type="button" class="btn-ghost" id="imageBtn">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 17-5-5-9 8" /></svg>Save image
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 17-5-5-9 8" /></svg><span data-i18n="saveImage">Save image</span>
               </button>
               <button type="button" class="btn-ghost" id="sheetBtn">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2" /><path d="M6 14h12v7H6z" /></svg>Print job sheet
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2" /><path d="M6 14h12v7H6z" /></svg><span data-i18n="jobSheet">Print job sheet</span>
               </button>
             </div>
           </section>
-          <footer class="panel-foot">Kits shown are original demo designs. 3D preview is for guidance; printed sizes follow the job sheet.</footer>
+          <footer class="panel-foot" data-i18n="footer">Kits shown are original demo designs. 3D preview is for guidance; printed sizes follow the job sheet.</footer>
         </aside>
       </main>
 
       <div class="mobile-bar">
-        <div><span>Total</span><strong data-bind="total">£0.00</strong></div>
-        <button type="button" class="btn-primary" id="addToBasketMobile">Add to basket</button>
+        <div><span data-i18n="total">Total</span><strong data-bind="total">£0.00</strong></div>
+        <button type="button" class="btn-primary" id="addToBasketMobile" data-i18n="addToBasket">Add to basket</button>
       </div>
     </div>
 
     <dialog id="sizeDialog" class="dialog">
       <form method="dialog">
-        <header><h3>Size guide</h3><button class="icon-btn" aria-label="Close">✕</button></header>
+        <header><h3 data-i18n="sizeGuideTitle">Size guide</h3><button class="icon-btn" data-i18n-aria="close" aria-label="Close">✕</button></header>
         <div id="sizeTable"></div>
-        <p class="note">Measure around the fullest part of the chest. Between sizes? Choose the larger size for a relaxed fit.</p>
+        <p class="note" data-i18n="sizeNote">Measure around the fullest part of the chest. Between sizes? Choose the larger size for a relaxed fit.</p>
       </form>
     </dialog>
 
     <dialog id="basketDialog" class="dialog">
       <form method="dialog">
-        <header><h3>Added to your basket</h3><button class="icon-btn" aria-label="Close">✕</button></header>
+        <header><h3 data-i18n="basketTitle">Added to your basket</h3><button class="icon-btn" data-i18n-aria="close" aria-label="Close">✕</button></header>
         <div class="basket-body" id="basketBody"></div>
         <div class="dialog-actions">
-          <button class="btn-ghost" value="close">Keep designing</button>
-          <button class="btn-primary" value="checkout" id="checkoutBtn">Checkout</button>
+          <button class="btn-ghost" value="close" data-i18n="keepDesigning">Keep designing</button>
+          <button class="btn-primary" value="checkout" id="checkoutBtn" data-i18n="checkout">Checkout</button>
         </div>
       </form>
     </dialog>
 
     <dialog id="imageDialog" class="dialog">
       <form method="dialog">
-        <header><h3>Your kit image</h3><button class="icon-btn" aria-label="Close">✕</button></header>
-        <img id="imagePreview" class="image-preview" alt="Front and back of your kit" />
-        <p class="note">Press and hold (or right-click) the image to save it.</p>
+        <header><h3 data-i18n="imageTitle">Your kit image</h3><button class="icon-btn" data-i18n-aria="close" aria-label="Close">✕</button></header>
+        <img id="imagePreview" class="image-preview" data-i18n-alt="imageAlt" alt="Front and back of your kit" />
+        <p class="note" data-i18n="imageNote">Press and hold (or right-click) the image to save it.</p>
       </form>
     </dialog>
 

@@ -55,7 +55,7 @@ export async function shareDesign(url, title) {
 const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 
 // Square social image: front and back side by side with the shop branding.
-export async function saveImage({ front, back, title, subtitle, shop, accent, previewOnly = false }) {
+export async function saveImage({ front, back, title, subtitle, shop, accent, previewOnly = false, designedIn = 'Designed in Kit Studio', rtl = false }) {
   const [fi, bi] = await Promise.all([loadImg(front), loadImg(back)]);
   const W = 1600, H = 1600;
   const c = document.createElement('canvas');
@@ -69,22 +69,27 @@ export async function saveImage({ front, back, title, subtitle, shop, accent, pr
   const iw = 760, ih = (iw * fi.height) / fi.width;
   ctx.drawImage(fi, 30, 190, iw, ih);
   ctx.drawImage(bi, W - iw - 30, 190, iw, ih);
+  // Header (title + subtitle) sits on the reading-start side; branding on the other.
+  const startX = rtl ? W - 112 : 112;
+  const endX = rtl ? 80 : W - 80;
+  if ('direction' in ctx) ctx.direction = rtl ? 'rtl' : 'ltr';
   ctx.fillStyle = accent;
-  ctx.fillRect(80, 92, 10, 72);
+  ctx.fillRect(rtl ? W - 90 : 80, 92, 10, 72);
+  ctx.textAlign = rtl ? 'right' : 'left';
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 72px "Barlow Condensed", sans-serif';
+  ctx.font = '700 72px "Barlow Condensed", Changa, sans-serif';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(title.toUpperCase(), 112, 148);
+  ctx.fillText(title.toUpperCase(), startX, 148);
   ctx.fillStyle = '#9aa3af';
-  ctx.font = '500 30px Inter, sans-serif';
-  ctx.fillText(subtitle, 114, 192);
-  ctx.textAlign = 'right';
+  ctx.font = '500 30px Tajawal, Inter, sans-serif';
+  ctx.fillText(subtitle, startX, 192);
+  ctx.textAlign = rtl ? 'left' : 'right';
   ctx.fillStyle = '#ffffff';
   ctx.font = '700 40px "Barlow Condensed", sans-serif';
-  ctx.fillText(shop.toUpperCase(), W - 80, H - 70);
+  ctx.fillText(shop.toUpperCase(), endX, H - 70);
   ctx.fillStyle = accent;
-  ctx.font = '600 26px Inter, sans-serif';
-  ctx.fillText('Designed in Kit Studio', W - 80, H - 110);
+  ctx.font = '600 26px Tajawal, Inter, sans-serif';
+  ctx.fillText(designedIn, endX, H - 110);
   if (previewOnly) return c.toDataURL('image/png');
   const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
   const file = new File([blob], 'my-kit.png', { type: 'image/png' });

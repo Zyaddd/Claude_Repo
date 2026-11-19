@@ -82,3 +82,12 @@ renders any artwork placed in those regions.
 - **Phase 2:** admin panel (upload kits, set prices, stock), shop-uploaded fonts, Arabic/RTL
   interface, e-commerce plugins (Shopify and WooCommerce).
 - **Phase 3:** AR view on phones, analytics dashboard, multi-shop subscription accounts.
+
+## Arabic / English
+
+The interface is available in English and Arabic (right-to-left), with an EN / عربي switch in the top bar.
+It opens in Arabic when the link has `?lang=ar`, when the link uses a Gulf currency
+(`currency=SAR`, `AED`, `QAR`, `KWD`, `BHD` or `OMR`), or when the visitor's browser is set to Arabic;
+otherwise English. The visitor's choice is remembered. Translations live in `src/i18n.js`.
+
+Example: `https://zyaddd.github.io/3dcubeworks-demo/?shop=Your%20Shop&currency=SAR&lang=ar`

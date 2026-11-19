@@ -4,8 +4,8 @@
 
 import QRCode from 'qrcode';
 import { money } from '../config.js';
-import { PATCHES } from '../kits/painter.js';
 import { SHIRT_DECAL } from '../garment/layout.js';
+import { t, getLang, sizeLabel } from '../i18n.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -47,70 +47,72 @@ export async function openJobSheet({ demoHost = false, design: d, kit, info, fro
   const spec = info?.spec;
   const sw = (hex) => `<span class="swatch" style="background:${esc(hex)}"></span>${esc(hex.toUpperCase())}`;
   const hasPrint = d.name || d.number;
-  const now = new Date().toLocaleString(config.locale);
+  const ar = getLang() === 'ar';
+  const now = new Date().toLocaleString(ar ? 'ar-u-nu-latn' : config.locale);
+  const cm = (v) => `${v} ${ar ? 'سم' : 'cm'}`;
 
   const rows = (list) => list.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('');
   const orderRows = rows([
-    ['Kit', `<strong>${esc(d.club)} — ${esc(d.kitType)}</strong>`],
-    ['Size', `<strong>${d.sizeGroup === 'kids' ? 'Kids' : 'Adult'} ${esc(d.size)}</strong>`],
-    ['Quantity', `<strong>${esc(d.qty)}</strong>`],
-    ['Sleeve patches', esc(PATCHES[d.patch]?.label || 'None')],
-    ['Shorts', d.shorts ? `Yes${d.shortsNumber ? ` — number ${esc(d.number)} on front left leg` : ''}` : 'No'],
-    ['Unit price', esc(money(d.unitPrice))],
-    ['Total', `<strong>${esc(money(d.total))}</strong>`],
+    [t('js.kit'), `<strong>${esc(d.club)} — ${esc(t(`type.${d.kitType}`))}</strong>`],
+    [t('js.size'), `<strong>${esc(t(d.sizeGroup === 'kids' ? 'group.kids' : 'group.adult'))} ${esc(sizeLabel(d.size))}</strong>`],
+    [t('js.qty'), `<strong>${esc(d.qty)}</strong>`],
+    [t('js.patches'), esc(d.patch !== 'none' ? t(`patchLong.${d.patch}`) : t('js.none'))],
+    [t('js.shorts'), d.shorts ? (d.shortsNumber ? esc(t('js.shortsWithNumber', { n: d.number })) : t('js.yes')) : t('js.no')],
+    [t('js.unit'), esc(money(d.unitPrice))],
+    [t('js.total'), `<strong>${esc(money(d.total))}</strong>`],
   ]);
   const printRows = hasPrint
     ? rows([
-        ['Name', d.name ? `<strong style="font-size:18px">${esc(d.name)}</strong>` : '—'],
-        ['Number', d.number ? `<strong style="font-size:18px">${esc(d.number)}</strong>` : '—'],
-        ['Lettering', `${esc(d.lettering)}${d.arched ? ' · arched name' : ''}`],
-        ['Colour', `${sw(info.fill)}${info.outline ? ` &nbsp;outline ${sw(info.outline)}` : ''}`],
-        ['Name height', `${info.nameHeightCm.toFixed(1)} cm (capitals)`],
-        ['Name width', d.name ? `${info.nameWidthCm.toFixed(1)} cm${info.squeeze < 0.999 ? ` (condensed to ${Math.round(info.squeeze * 100)}%)` : ''}` : '—'],
-        ['Number height', `${spec.numberHeight} cm`],
-        ['Number width', d.number ? `${info.numberWidthCm.toFixed(1)} cm` : '—'],
-        ['Placement', `Top of name ${spec.nameTop} cm below back collar seam; ${spec.gap} cm gap to number; centred`],
-        ['Shorts number', d.shortsNumber ? `${spec.shortsNumber} cm, front left leg` : '—'],
+        [t('js.name'), d.name ? `<strong style="font-size:18px" dir="auto">${esc(d.name)}</strong>` : '—'],
+        [t('js.number'), d.number ? `<strong style="font-size:18px">${esc(d.number)}</strong>` : '—'],
+        [t('js.lettering'), `${esc(d.lettering)}${d.arched ? esc(t('js.archedSuffix')) : ''}`],
+        [t('js.colour'), `${sw(info.fill)}${info.outline ? ` &nbsp;${esc(t('js.outline'))} ${sw(info.outline)}` : ''}`],
+        [t('js.nameHeight'), esc(t('js.nameHeightVal', { h: info.nameHeightCm.toFixed(1) }))],
+        [t('js.nameWidth'), d.name ? `${cm(info.nameWidthCm.toFixed(1))}${info.squeeze < 0.999 ? esc(t('js.condensed', { p: Math.round(info.squeeze * 100) })) : ''}` : '—'],
+        [t('js.numberHeight'), cm(spec.numberHeight)],
+        [t('js.numberWidth'), d.number ? cm(info.numberWidthCm.toFixed(1)) : '—'],
+        [t('js.placement'), esc(t('js.placementVal', { top: spec.nameTop, gap: spec.gap }))],
+        [t('js.shortsNumber'), d.shortsNumber ? esc(t('js.shortsNumberVal', { h: spec.shortsNumber })) : '—'],
       ])
-    : '<tr><td colspan="2">No name or number printing on this order.</td></tr>';
+    : `<tr><td colspan="2">${esc(t('js.noPrint'))}</td></tr>`;
 
   const root = document.getElementById('sheetRoot');
   root.innerHTML = `
-    <div class="sheet-overlay" role="dialog" aria-label="Print job sheet">
+    <div class="sheet-overlay" role="dialog" aria-label="${esc(t('js.dialog'))}">
       <div class="sheet-toolbar">
-        <button type="button" class="close">Close</button>
-        ${demoHost ? '<span class="sheet-note">Printing is switched on when installed on the shop’s website.</span>' : '<button type="button" class="print">Print / Save PDF</button>'}
+        <button type="button" class="close">${esc(t('js.close'))}</button>
+        ${demoHost ? `<span class="sheet-note">${esc(t('js.printNote'))}</span>` : `<button type="button" class="print">${esc(t('js.print'))}</button>`}
       </div>
-      <article class="sheet">
+      <article class="sheet" dir="${ar ? 'rtl' : 'ltr'}" lang="${ar ? 'ar' : 'en'}">
         <div class="s-head">
           <div>
             <div style="color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:11px">${esc(config.shopName)}</div>
-            <h1>Print job sheet</h1>
+            <h1>${esc(t('js.title'))}</h1>
           </div>
           <div class="s-meta">
-            <div class="s-ref">${esc(ref)}</div>
+            <div class="s-ref" dir="ltr">${esc(ref)}</div>
             <div>${esc(now)}</div>
           </div>
         </div>
         <div class="s-grid">
           <div>
-            <h2>Order</h2>
+            <h2>${esc(t('js.order'))}</h2>
             <table>${orderRows}</table>
-            <h2>Printing</h2>
+            <h2>${esc(t('js.printing'))}</h2>
             <table>${printRows}</table>
-            ${d.name && (info.squeeze < 0.85 || info.nameHeightCm < spec.nameHeight - 0.05) ? '<div class="warn">Long name: lettering is condensed and/or reduced in height to fit the maximum width. Check spacing before pressing.</div>' : ''}
+            ${d.name && (info.squeeze < 0.85 || info.nameHeightCm < spec.nameHeight - 0.05) ? `<div class="warn">${esc(t('js.warnLong'))}</div>` : ''}
           </div>
           <div>
-            <h2>Preview</h2>
-            <div class="s-renders"><img src="${front}" alt="Front" /><img src="${back}" alt="Back" /></div>
-            ${art ? `<h2>Artwork (actual layout)</h2><div class="s-art"><img src="${art.url}" alt="Name and number artwork" /><div style="color:#555;margin-top:6px">Print area ≈ ${art.widthCm.toFixed(1)} × ${art.heightCm.toFixed(1)} cm</div></div>` : ''}
+            <h2>${esc(t('js.preview'))}</h2>
+            <div class="s-renders"><img src="${front}" alt="${esc(t('js.front'))}" /><img src="${back}" alt="${esc(t('js.back'))}" /></div>
+            ${art ? `<h2>${esc(t('js.artwork'))}</h2><div class="s-art"><img src="${art.url}" alt="${esc(t('js.artworkAlt'))}" /><div style="color:#555;margin-top:6px">${esc(t('js.printArea', { w: art.widthCm.toFixed(1), h: art.heightCm.toFixed(1) }))}</div></div>` : ''}
           </div>
         </div>
         <div class="s-foot">
-          <div><div class="sign"></div><div class="sign-label">Printed by</div></div>
-          <div><div class="sign"></div><div class="sign-label">Checked by</div></div>
-          <div><div class="sign"></div><div class="sign-label">Collected / shipped</div></div>
-          <div class="s-qr"><img src="${qr}" alt="QR code to reopen this design" /><div class="sign-label">Scan to reopen design</div></div>
+          <div><div class="sign"></div><div class="sign-label">${esc(t('js.printedBy'))}</div></div>
+          <div><div class="sign"></div><div class="sign-label">${esc(t('js.checkedBy'))}</div></div>
+          <div><div class="sign"></div><div class="sign-label">${esc(t('js.shipped'))}</div></div>
+          <div class="s-qr"><img src="${qr}" alt="${esc(t('js.qrAlt'))}" /><div class="sign-label">${esc(t('js.qr'))}</div></div>
         </div>
       </article>
     </div>`;

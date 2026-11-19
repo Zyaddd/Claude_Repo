@@ -10,6 +10,9 @@ import '@fontsource/graduate/400.css';
 import '@fontsource/saira-condensed/800.css';
 import '@fontsource/russo-one/400.css';
 import '@fontsource/changa/700.css';
+import '@fontsource/tajawal/400.css';
+import '@fontsource/tajawal/500.css';
+import '@fontsource/tajawal/700.css';
 import './styles.css';
 
 import { CONFIG, money } from './config.js';
@@ -21,6 +24,7 @@ import { KitModel } from './render/kitModel.js';
 import { loadGarments } from './garment/loader.js';
 import { openJobSheet } from './ui/jobsheet.js';
 import { encodeDesign, decodeDesign, shareDesign, saveImage } from './ui/share.js';
+import { t, getLang, setLang, applyStatic, onLangChange, sizeLabel } from './i18n.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -61,7 +65,6 @@ document.documentElement.style.setProperty('--accent', CONFIG.accent);
 }
 const bind = (key, value) => $$(`[data-bind="${key}"]`).forEach((el) => (el.textContent = value));
 bind('shopName', CONFIG.shopName);
-bind('tagline', CONFIG.tagline);
 document.title = `${CONFIG.shopName} · Kit Studio`;
 $('#nameInput').maxLength = 16;
 
@@ -73,12 +76,12 @@ function priceLines() {
   const p = CONFIG.prices;
   const kids = state.sizeGroup === 'kids';
   const mult = kids ? p.kidsMultiplier : 1;
-  const lines = [{ label: `${clubOf(kit).name} ${kit.type} shirt`, sub: `${kids ? 'Kids' : 'Adult'} ${state.size}`, value: kit.price * mult }];
-  if (state.name.trim()) lines.push({ label: 'Name printing', sub: state.name.trim().toUpperCase(), value: p.name });
-  if (state.number !== '') lines.push({ label: 'Number printing', sub: `#${state.number}`, value: p.number });
-  if (state.patch !== 'none') lines.push({ label: 'Sleeve patches', sub: PATCHES[state.patch].label, value: p.patch });
-  if (state.shorts) lines.push({ label: 'Matching shorts', value: p.shorts * mult });
-  if (state.shorts && state.shortsNumber && state.number !== '') lines.push({ label: 'Shorts number', value: p.shortsNumber });
+  const lines = [{ label: t('line.shirt', { club: clubOf(kit).name, type: t(`type.${kit.type}`) }), sub: `${t(kids ? 'group.kids' : 'group.adult')} ${sizeLabel(state.size)}`, value: kit.price * mult }];
+  if (state.name.trim()) lines.push({ label: t('line.name'), sub: isArabic(state.name) ? state.name.trim() : state.name.trim().toUpperCase(), value: p.name });
+  if (state.number !== '') lines.push({ label: t('line.number'), sub: `#${state.number}`, value: p.number });
+  if (state.patch !== 'none') lines.push({ label: t('line.patches'), sub: t(`patchLong.${state.patch}`), value: p.patch });
+  if (state.shorts) lines.push({ label: t('line.shorts'), value: p.shorts * mult });
+  if (state.shorts && state.shortsNumber && state.number !== '') lines.push({ label: t('line.shortsNumber'), value: p.shortsNumber });
   return lines;
 }
 const unitPrice = () => priceLines().reduce((a, l) => a + l.value, 0);
@@ -136,7 +139,7 @@ async function applyKit() {
   const kit = kitById(state.kitId);
   const club = clubOf(kit);
   bind('club', club.name);
-  bind('kitType', `${kit.type} kit · ${money(kit.price)}`);
+  bind('kitType', `${t(`typeLong.${kit.type}`)} · ${money(kit.price)}`);
   $('.kit-crest').src = crestImage(club, 48).toDataURL();
   if (model) {
     model.setKit(kit, state.patch);
@@ -144,7 +147,11 @@ async function applyKit() {
   }
   // players
   const sel = $('#playerSelect');
-  sel.innerHTML = '<option value="">Your own name &amp; number</option>';
+  sel.innerHTML = '';
+  const own = document.createElement('option');
+  own.value = '';
+  own.textContent = t('ownName');
+  sel.appendChild(own);
   for (const [n, num] of club.players) {
     const o = document.createElement('option');
     o.value = `${n}|${num}`;
@@ -167,14 +174,15 @@ function buildKitGrid() {
     b.className = 'kit-card';
     b.dataset.kit = kit.id;
     b.dataset.type = kit.type;
-    b.setAttribute('aria-label', `${clubOf(kit).name} ${kit.type}`);
+    b.setAttribute('aria-label', `${clubOf(kit).name} ${t(`type.${kit.type}`)}`);
     const thumb = kitThumbnail(kit, atlas, 144);
     const club = document.createElement('span');
     club.className = 'k-club';
     club.textContent = clubOf(kit).name;
     const type = document.createElement('span');
     type.className = 'k-type';
-    type.textContent = kit.type;
+    type.dataset.i18n = `type.${kit.type}`;
+    type.textContent = t(`type.${kit.type}`);
     b.append(thumb, club, type);
     b.addEventListener('click', () => {
       if (state.kitId === kit.id) return;
@@ -204,10 +212,10 @@ function validateName(raw) {
   let v = raw.replace(NAME_RE, '');
   const max = isArabic(v) ? CONFIG.nameMaxLength + 4 : CONFIG.nameMaxLength;
   let msg = '';
-  if (raw !== v) msg = 'Letters, spaces, hyphens and apostrophes only.';
-  if (v.length > max) { v = v.slice(0, max); msg = `Maximum ${max} characters.`; }
+  if (raw !== v) msg = t('msg.chars');
+  if (v.length > max) { v = v.slice(0, max); msg = t('msg.max', { n: max }); }
   const low = v.toLowerCase().replace(/[^a-z]/g, '');
-  if (CONFIG.blockedWords.some((w) => low.includes(w))) return { value: v, error: 'Sorry, we can’t print that name.' };
+  if (CONFIG.blockedWords.some((w) => low.includes(w))) return { value: v, error: t('msg.blocked') };
   return { value: v, msg };
 }
 
@@ -286,7 +294,8 @@ function buildFontGrid() {
     const c = document.createElement('canvas');
     c.width = 112; c.height = 68;
     const label = document.createElement('span');
-    label.textContent = style.label;
+    label.dataset.i18n = `font.${style.id}`;
+    label.textContent = t(`font.${style.id}`);
     b.append(c, label);
     b.addEventListener('click', () => {
       state.font = style.id;
@@ -323,7 +332,7 @@ function buildSizes() {
   for (const s of CONFIG.sizes[state.sizeGroup]) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = s;
+    b.textContent = sizeLabel(s);
     b.classList.toggle('active', s === state.size);
     b.addEventListener('click', () => {
       state.size = s;
@@ -374,9 +383,10 @@ function bindExtras() {
     update();
   });
   $('#sizeGuideBtn').addEventListener('click', () => {
-    const rows = (g) => CONFIG.sizeGuide[g].map((r) => `<tr><td><strong>${r[0]}</strong></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+    const kids = state.sizeGroup === 'kids';
+    const rows = (g) => CONFIG.sizeGuide[g].map((r) => `<tr><td><strong>${sizeLabel(r[0])}</strong></td><td dir="ltr">${r[1]}</td><td>${r[2]}</td></tr>`).join('');
     $('#sizeTable').innerHTML = `
-      <table><thead><tr><th>${state.sizeGroup === 'kids' ? 'Age' : 'Size'}</th><th>${state.sizeGroup === 'kids' ? 'Height (cm)' : 'Chest (cm)'}</th><th>Shirt length (cm)</th></tr></thead>
+      <table><thead><tr><th>${t(kids ? 'sg.age' : 'sg.size')}</th><th>${t(kids ? 'sg.height' : 'sg.chest')}</th><th>${t('sg.length')}</th></tr></thead>
       <tbody>${rows(state.sizeGroup)}</tbody></table>`;
     $('#sizeDialog').showModal();
   });
@@ -425,7 +435,7 @@ function designSummary() {
     kitType: kit.type,
     name: state.name.trim() ? (isArabic(state.name) ? state.name.trim() : state.name.trim().toUpperCase()) : '',
     number: state.number,
-    lettering: FONT_STYLES.find((f) => f.id === state.font).label,
+    lettering: t(`font.${state.font}`),
     arched: state.arched,
     sizeGroup: state.sizeGroup,
     size: state.size,
@@ -455,14 +465,15 @@ function addToBasket() {
   window.dispatchEvent(new CustomEvent('kitstudio:add-to-basket', { detail: d }));
   const img = studio.snapshot({ width: 440, height: 540, view: d.name || d.number ? 'back' : 'front', background: stageBackground });
   const rows = [
-    ['Kit', `${d.club} ${d.kitType}`],
-    ['Size', `${d.sizeGroup === 'kids' ? 'Kids' : 'Adult'} ${d.size}`],
-    ['Name', d.name || '—'],
-    ['Number', d.number || '—'],
-    ['Qty', d.qty],
-    ['Total', money(d.total)],
+    [t('row.kit'), `${d.club} ${t(`type.${d.kitType}`)}`],
+    [t('row.size'), `${t(d.sizeGroup === 'kids' ? 'group.kids' : 'group.adult')} ${sizeLabel(d.size)}`],
+    [t('row.name'), d.name || '—'],
+    [t('row.number'), d.number || '—'],
+    [t('row.qty'), d.qty],
+    [t('row.total'), money(d.total)],
   ];
-  $('#basketBody').innerHTML = `<img src="${img}" alt="Your kit" /><dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd></dd>`).join('')}</dl>`;
+  $('#basketBody').innerHTML = `<img src="${img}" alt="${t('yourKit')}" /><dl>${rows.map(() => `<dt></dt><dd></dd>`).join('')}</dl>`;
+  $$('#basketBody dt').forEach((dt, i) => (dt.textContent = rows[i][0]));
   $$('#basketBody dd').forEach((dd, i) => (dd.textContent = rows[i][1]));
   $('#basketDialog').showModal();
 }
@@ -471,7 +482,7 @@ $('#addToBasketMobile').addEventListener('click', addToBasket);
 $('#basketDialog').addEventListener('close', () => {
   if ($('#basketDialog').returnValue === 'checkout') {
     if (CONFIG.checkoutUrl) location.href = CONFIG.checkoutUrl;
-    else toast('Demo mode: checkout is connected when installed on the shop’s website.');
+    else toast(t('toast.checkout'));
   }
 });
 
@@ -483,9 +494,9 @@ $('#sheetBtn').addEventListener('click', async () => {
 });
 $('#shareBtn').addEventListener('click', async () => {
   syncUrl();
-  if (DEMO_HOST) { toast('Share links are switched on when installed on the shop’s website.'); return; }
-  const r = await shareDesign(location.href, `${CONFIG.shopName}: my custom kit`);
-  if (r === 'copied') toast('Link copied. Anyone with it sees this exact design.');
+  if (DEMO_HOST) { toast(t('toast.shareDemo')); return; }
+  const r = await shareDesign(location.href, t('shareTitle', { shop: CONFIG.shopName }));
+  if (r === 'copied') toast(t('toast.copied'));
   track('design_shared');
 });
 $('#imageBtn').addEventListener('click', async () => {
@@ -493,7 +504,7 @@ $('#imageBtn').addEventListener('click', async () => {
   const d = designSummary();
   const back = studio.snapshot({ width: 900, height: 1100, view: 'back' });
   const front = studio.snapshot({ width: 900, height: 1100, view: 'front' });
-  const opts = { front, back, title: d.name ? `${d.name} ${d.number}` : `${d.club}`, subtitle: `${d.club} · ${kit.type}`, shop: CONFIG.shopName, accent: CONFIG.accent, previewOnly: DEMO_HOST };
+  const opts = { front, back, title: d.name ? `${d.name} ${d.number}` : `${d.club}`, subtitle: `${d.club} · ${t(`typeLong.${kit.type}`)}`, shop: CONFIG.shopName, accent: CONFIG.accent, previewOnly: DEMO_HOST, designedIn: t('designedIn'), rtl: getLang() === 'ar' };
   const url = await saveImage(opts);
   if (url) { $('#imagePreview').src = url; $('#imageDialog').showModal(); }
   track('image_saved');
@@ -515,6 +526,7 @@ let urlTimer;
 function update() {
   applyDesign();
   drawFontSamples();
+  $('#nameInput').classList.toggle('ar-text', isArabic(state.name));
   $('#nameCounter').textContent = `${[...state.name].length}/${isArabic(state.name) ? CONFIG.nameMaxLength + 4 : CONFIG.nameMaxLength}`;
   $('#shortsNumber').disabled = false;
   renderPrice();
@@ -525,7 +537,40 @@ function update() {
 // ------------------------------------------------------------------
 // Boot
 // ------------------------------------------------------------------
+function syncLangSwitch() {
+  $$('.lang-switch button').forEach((b) => {
+    const on = b.dataset.lang === getLang();
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
+$$('.lang-switch button').forEach((b) =>
+  b.addEventListener('click', () => {
+    if (b.dataset.lang === getLang()) return;
+    setLang(b.dataset.lang);
+    track('language_changed', { lang: b.dataset.lang });
+  }),
+);
+onLangChange(() => {
+  syncLangSwitch();
+  const kit = kitById(state.kitId);
+  bind('kitType', `${t(`typeLong.${kit.type}`)} · ${money(kit.price)}`);
+  const sel = $('#playerSelect');
+  if (sel.options[0]) sel.options[0].textContent = t('ownName');
+  $$('.kit-card').forEach((c) => c.setAttribute('aria-label', `${c.querySelector('.k-club').textContent} ${t(`type.${c.dataset.type}`)}`));
+  buildSizes();
+  const msg = $('#printMsg');
+  if (msg.textContent) {
+    const r = validateName($('#nameInput').value);
+    setMsg(r.error || r.msg, !!r.error);
+  }
+  renderPrice();
+  studio.resize();
+});
+
 async function boot() {
+  applyStatic();
+  syncLangSwitch();
   buildKitGrid();
   buildFontGrid();
   buildSizes();
@@ -566,5 +611,5 @@ async function boot() {
 
 boot().catch((err) => {
   console.error(err);
-  $('.loader-text').textContent = 'Sorry, 3D preview could not start on this device.';
+  $('.loader-text').textContent = t('loadFail');
 });

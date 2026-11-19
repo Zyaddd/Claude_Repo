@@ -18,6 +18,7 @@
     "@fontsource/oswald": "^5.3.0",
     "@fontsource/russo-one": "^5.3.0",
     "@fontsource/saira-condensed": "^5.3.0",
+    "@fontsource/tajawal": "^5.3.0",
     "qrcode": "^1.5.4",
     "three": "0.170.0"
   },
