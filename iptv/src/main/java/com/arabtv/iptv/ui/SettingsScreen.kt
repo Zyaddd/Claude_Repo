@@ -47,7 +47,10 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
     val s by vm.settings.collectAsState()
     val status by vm.receiver.status.collectAsState()
     val failures by vm.loadFailures.collectAsState()
-    val channels by vm.channels.collectAsState()
+    val channels by vm.catalog.collectAsState()
+    val everything by vm.allChannels.collectAsState()
+    val finding by vm.finding.collectAsState()
+    val pending by vm.pendingChannels.collectAsState()
     var dialog by remember { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize()) {
@@ -99,6 +102,50 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
                 item { ActionRow(stringResource(R.string.new_code), stringResource(R.string.new_code_help)) { vm.newPairingCode() } }
                 item {
                     ActionRow(stringResource(R.string.relay_server), s.relayServer) { dialog = "relay" }
+                }
+            }
+
+            // ---- Channels ----
+            item { Header(stringResource(R.string.sec_channels)) }
+            item {
+                ActionRow(
+                    stringResource(if (finding) R.string.finding_channels else R.string.find_new_channels),
+                    if (pending.isNotEmpty()) stringResource(R.string.new_channels_banner, pending.size)
+                    else stringResource(R.string.find_new_channels_help),
+                ) { vm.findNewChannels() }
+            }
+            item {
+                ActionRow(
+                    stringResource(R.string.hidden_channels),
+                    stringResource(R.string.hidden_channels_count, s.hiddenIds.size),
+                ) { dialog = "hidden" }
+            }
+            item {
+                SwitchRow(stringResource(R.string.channel_osd), stringResource(R.string.channel_osd_help), s.channelOsd) { on ->
+                    vm.updateSettings { it.copy(channelOsd = on) }
+                }
+            }
+            item {
+                SwitchRow(stringResource(R.string.show_guide), stringResource(R.string.show_guide_help), s.showGuide) { on ->
+                    vm.updateSettings { it.copy(showGuide = on) }
+                    if (on) vm.loadGuide(force = true)
+                }
+            }
+            if (s.showGuide) {
+                item { ActionRow(stringResource(R.string.guide_sources), s.guideUrls.lines().size.toString() + " ×  XMLTV") { dialog = "guide" } }
+            }
+
+            // ---- Updates ----
+            item { Header(stringResource(R.string.sec_updates)) }
+            item {
+                ActionRow(
+                    stringResource(R.string.check_updates),
+                    stringResource(R.string.current_version, BuildConfigInfo.versionName(vm.getApplication<android.app.Application>())),
+                ) { vm.checkForUpdates() }
+            }
+            item {
+                SwitchRow(stringResource(R.string.auto_update), stringResource(R.string.auto_update_help), s.autoUpdate) { on ->
+                    vm.updateSettings { it.copy(autoUpdate = on) }
                 }
             }
 
@@ -209,6 +256,43 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
             fields = listOf(FieldSpec(stringResource(R.string.pin), keyboard = KeyboardType.NumberPassword)),
             onDismiss = { dialog = null },
             onConfirm = { v -> if (vm.enableKidsMode(v[0].trim())) dialog = null },
+        )
+        "hidden" -> androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dialog = null },
+            title = { Text(stringResource(R.string.hidden_channels)) },
+            text = {
+                val hidden = everything.filter { it.id in s.hiddenIds }
+                if (hidden.isEmpty()) {
+                    Text(stringResource(R.string.hidden_none))
+                } else {
+                    LazyColumn {
+                        items(hidden.size) { i ->
+                            val ch = hidden[i]
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                Text(vm.title(ch), modifier = Modifier.weight(1f))
+                                androidx.compose.material3.TextButton(onClick = { vm.unhideChannel(ch.id) }) {
+                                    Text(stringResource(R.string.show_again))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.ok)) }
+            },
+        )
+        "guide" -> TextFieldsDialog(
+            title = stringResource(R.string.guide_sources),
+            message = stringResource(R.string.guide_sources_help),
+            fields = listOf(FieldSpec("URL", s.guideUrls.lines().joinToString(" "), KeyboardType.Uri)),
+            onDismiss = { dialog = null },
+            onConfirm = { v ->
+                val urls = v[0].split(' ', '\n', ',').map { it.trim() }.filter { it.startsWith("http") }
+                vm.updateSettings { it.copy(guideUrls = urls.joinToString("\n").ifBlank { Prefs.DEFAULT_GUIDE_URLS }) }
+                vm.loadGuide(force = true)
+                dialog = null
+            },
         )
         "language" -> androidx.compose.material3.AlertDialog(
             onDismissRequest = { dialog = null },

@@ -10,17 +10,30 @@ import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
 
+/** A built-in channel list: where it is published, its bundled snapshot, and which entries to keep. */
+data class CatalogSource(
+    val key: String,
+    val urls: List<String>,
+    val asset: String,
+    val minEntries: Int,
+    val keep: (M3uEntry) -> Boolean = { true },
+)
+
 /**
- * The channel catalog: iptv-org's Arabic playlist (bundled snapshot, refreshed online) plus any
- * playlists the user added.
+ * The channel catalog: public free-channel lists (bundled snapshots, refreshed online), merged so
+ * each channel appears once with every known link, plus any playlists the user added.
  */
 class ChannelRepository(private val context: Context) {
     private val _channels = MutableStateFlow<List<Channel>>(emptyList())
     val channels: StateFlow<List<Channel>> = _channels.asStateFlow()
 
-    /** Playlists that failed on the last refresh, with the error text. */
+    /** Lists that failed on the last refresh, with the error text. */
     private val _failures = MutableStateFlow<Map<String, String>>(emptyMap())
     val failures: StateFlow<Map<String, String>> = _failures.asStateFlow()
+
+    /** When the last successful online refresh finished (0 = never in this run). */
+    @Volatile var lastRefresh = 0L
+        private set
 
     private val arabicNames: Map<String, String> by lazy {
         runCatching {
@@ -29,13 +42,19 @@ class ChannelRepository(private val context: Context) {
         }.getOrDefault(emptyMap())
     }
 
-    private val catalogCache get() = File(context.filesDir, "catalog_ara.m3u")
+    private fun cacheFile(s: CatalogSource) = File(context.filesDir, "catalog_${s.key}.m3u")
+
+    private fun bundled(s: CatalogSource): String =
+        context.assets.open(s.asset).bufferedReader().use { it.readText() }
+
+    private fun offlineText(s: CatalogSource): String =
+        cacheFile(s).takeIf { it.exists() }?.let { runCatching { it.readText() }.getOrNull() }
+            ?.takeIf { looksValid(it, s.minEntries) }
+            ?: bundled(s)
 
     /** Shows whatever is available offline right away (cache, else the bundled snapshot). */
     suspend fun loadOffline(playlists: List<UserPlaylist>) = withContext(Dispatchers.IO) {
-        val builtIn = catalogCache.takeIf { it.exists() }?.let { runCatching { it.readText() }.getOrNull() }
-            ?.takeIf { looksValid(it) }
-            ?: context.assets.open("ara.m3u").bufferedReader().use { it.readText() }
+        val builtIn = SOURCES.map { it to offlineText(it) }
         val user = playlists.mapNotNull { p ->
             playlistCache(p).takeIf { it.exists() }?.let { f -> runCatching { p to f.readText() }.getOrNull() }
         }
@@ -45,24 +64,25 @@ class ChannelRepository(private val context: Context) {
     /** Downloads fresh copies of everything; keeps the old copy of anything that fails. */
     suspend fun refresh(playlists: List<UserPlaylist>) = withContext(Dispatchers.IO) {
         val failures = mutableMapOf<String, String>()
-        var builtIn: String? = null
-        for (url in CATALOG_URLS) {
-            try {
-                val text = Http.getText(url)
-                if (looksValid(text)) {
-                    builtIn = text
-                    runCatching { catalogCache.writeText(text) }
-                    break
+        val builtIn = SOURCES.map { s ->
+            var text: String? = null
+            for (url in s.urls) {
+                try {
+                    val t = Http.getText(url)
+                    if (looksValid(t, s.minEntries)) {
+                        text = t
+                        runCatching { cacheFile(s).writeText(t) }
+                        break
+                    } else {
+                        failures[url] = "Unexpected content"
+                    }
+                } catch (e: Exception) {
+                    failures[url] = e.message ?: e.javaClass.simpleName
                 }
-            } catch (e: Exception) {
-                failures[url] = e.message ?: e.javaClass.simpleName
             }
+            if (text != null) failures.keys.removeAll(s.urls.toSet())
+            s to (text ?: offlineText(s))
         }
-        if (builtIn != null) failures.keys.removeAll(CATALOG_URLS.toSet())
-        val builtInText = builtIn
-            ?: catalogCache.takeIf { it.exists() }?.readText()?.takeIf { looksValid(it) }
-            ?: context.assets.open("ara.m3u").bufferedReader().use { it.readText() }
-
         val user = playlists.mapNotNull { p ->
             try {
                 val text = Http.getText(p.url)
@@ -74,16 +94,20 @@ class ChannelRepository(private val context: Context) {
                 playlistCache(p).takeIf { it.exists() }?.let { p to it.readText() }
             }
         }
-        publish(builtInText, user)
+        publish(builtIn, user)
         _failures.value = failures
+        lastRefresh = System.currentTimeMillis()
     }
 
     fun forget(p: UserPlaylist) {
         playlistCache(p).delete()
     }
 
-    private fun publish(builtIn: String, user: List<Pair<UserPlaylist, String>>) {
-        val list = Catalog.build(M3uParser.parse(builtIn), arabicNames).toMutableList()
+    private fun publish(builtIn: List<Pair<CatalogSource, String>>, user: List<Pair<UserPlaylist, String>>) {
+        val lists = builtIn.map { (s, text) ->
+            Catalog.build(M3uParser.parse(text).filter(s.keep), arabicNames)
+        }
+        val list = Catalog.merge(lists).toMutableList()
         for ((p, text) in user) list += Catalog.build(M3uParser.parse(text), arabicNames, playlist = p.name)
         // Two playlists with the same name could repeat ids; lists need unique keys.
         _channels.value = list.distinctBy { it.id }
@@ -95,12 +119,37 @@ class ChannelRepository(private val context: Context) {
         return File(context.filesDir, "playlist_$hash.m3u")
     }
 
-    private fun looksValid(text: String) = text.contains("#EXTM3U") && text.split("#EXTINF").size > 50
+    private fun looksValid(text: String, min: Int) = text.contains("#EXTM3U") && text.split("#EXTINF").size > min
 
     companion object {
-        val CATALOG_URLS = listOf(
-            "https://iptv-org.github.io/iptv/languages/ara.m3u",
-            "https://raw.githubusercontent.com/iptv-org/iptv/gh-pages/languages/ara.m3u",
+        /** Must match FREETV_GROUPS / FREETV_EXCLUDE in iptv/tools/update_catalog.py. */
+        val FREETV_GROUPS = setOf(
+            "News (AR)", "Saudi Arabia", "United Arab Emirates", "Qatar", "Kuwait", "Bahrain", "Oman", "Yemen",
+            "Iraq", "Syria", "Lebanon", "Jordan", "Palestine", "Egypt", "Sudan", "Libya", "Tunisia", "Algeria",
+            "Morocco", "Mauritania",
+        )
+        private val FREETV_EXCLUDE = Regex("(?i)persia|english|zagros|turkmen|kurd")
+
+        fun keepFreeTv(e: M3uEntry): Boolean =
+            e.group in FREETV_GROUPS && !FREETV_EXCLUDE.containsMatchIn(e.title + " " + (e.attrs["tvg-id"] ?: ""))
+
+        val SOURCES = listOf(
+            CatalogSource(
+                key = "ara",
+                urls = listOf(
+                    "https://iptv-org.github.io/iptv/languages/ara.m3u",
+                    "https://raw.githubusercontent.com/iptv-org/iptv/gh-pages/languages/ara.m3u",
+                ),
+                asset = "ara.m3u",
+                minEntries = 50,
+            ),
+            CatalogSource(
+                key = "freetv",
+                urls = listOf("https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"),
+                asset = "freetv_arab.m3u",
+                minEntries = 50,
+                keep = ::keepFreeTv,
+            ),
         )
     }
 }

@@ -13,6 +13,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -37,6 +38,8 @@ data class PlaybackState(
     val error: String? = null,
     /** Shown while falling back to another source. */
     val switching: Boolean = false,
+    /** All links failed; looking for fresh ones in the online channel lists. */
+    val repairing: Boolean = false,
 )
 
 data class QualityOption(val label: String, val height: Int, val group: Int, val track: Int)
@@ -55,7 +58,8 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
         .setConnectTimeoutMs(15_000)
         .setReadTimeoutMs(20_000)
 
-    private val dataSourceFactory = ResolvingDataSource.Factory(httpFactory) { spec ->
+    // DefaultDataSource adds content:// and file:// (the user's own videos) on top of HTTP.
+    private val dataSourceFactory = ResolvingDataSource.Factory(DefaultDataSource.Factory(context, httpFactory)) { spec ->
         spec.withAdditionalHeaders(headers)
     }
 
@@ -75,6 +79,14 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
     private var attemptIndex = 0
     private var round = 0
     private var retryJob: Job? = null
+    private var repairTried = false
+    private var lastError: PlaybackException? = null
+
+    /**
+     * Called once per channel when every link failed. Should look for new links and call
+     * [replaceSources] or [repairFailed]. Returns false if no repair can be tried.
+     */
+    var onAllSourcesFailed: ((Channel) -> Boolean)? = null
 
     init {
         player.addListener(object : Player.Listener {
@@ -101,17 +113,45 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
             buffering = player.playbackState == Player.STATE_BUFFERING,
             playing = player.isPlaying,
             switching = if (player.playbackState == Player.STATE_READY) false else _state.value.switching,
+            repairing = if (player.playbackState == Player.STATE_READY) false else _state.value.repairing,
         )
     }
 
     fun play(channel: Channel, list: List<Channel>) {
+        repairTried = false
+        start(channel, list)
+    }
+
+    private fun start(channel: Channel, list: List<Channel>) {
         zapList = list.ifEmpty { listOf(channel) }
         retryJob?.cancel()
         round = 0
-        attempts = channel.sources.indices.flatMap { i -> mimeAttempts(channel.sources[i].url).map { i to it } }
+        attempts = channel.sources.indices
+            .filterNot { channel.sources[it].isYoutube }
+            .flatMap { i -> mimeAttempts(channel.sources[i].url).map { i to it } }
         attemptIndex = 0
         _state.value = PlaybackState(channel = channel)
+        if (attempts.isEmpty()) {
+            _state.value = _state.value.copy(error = "No playable link")
+            return
+        }
         startAttempt()
+    }
+
+    /** Auto-repair found [fresh] links for the current channel: play with them. */
+    fun replaceSources(fresh: Channel) {
+        val current = _state.value.channel ?: return
+        if (current.id != fresh.id) return
+        start(fresh, zapList.map { if (it.id == fresh.id) fresh else it })
+    }
+
+    /** Auto-repair found nothing new: show the error. */
+    fun repairFailed() {
+        val e = lastError
+        _state.value = _state.value.copy(
+            repairing = false, switching = false, buffering = false,
+            error = e?.let { describe(it) } ?: "No working link",
+        )
     }
 
     fun retry() {
@@ -211,7 +251,14 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
             }
             return
         }
-        _state.value = _state.value.copy(error = describe(error), switching = false, buffering = false)
+        lastError = error
+        val ch = _state.value.channel
+        if (!repairTried && ch != null && onAllSourcesFailed?.invoke(ch) == true) {
+            repairTried = true
+            _state.value = _state.value.copy(repairing = true, switching = false)
+            return
+        }
+        _state.value = _state.value.copy(error = describe(error), switching = false, buffering = false, repairing = false)
     }
 
     private fun describe(e: PlaybackException): String = when (e.errorCode) {
@@ -242,6 +289,7 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
         fun mimeAttempts(url: String): List<String?> {
             val path = url.substringBefore('?').substringBefore('#').lowercase()
             return when {
+                path.startsWith("content:") || path.startsWith("file:") -> listOf(null)
                 path.endsWith(".m3u8") || path.endsWith(".m3u") -> listOf(MimeTypes.APPLICATION_M3U8)
                 path.endsWith(".mpd") -> listOf(MimeTypes.APPLICATION_MPD)
                 path.endsWith(".mp4") || path.endsWith(".ts") || path.endsWith(".mkv") -> listOf(null)

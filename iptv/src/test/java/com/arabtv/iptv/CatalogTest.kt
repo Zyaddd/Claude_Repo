@@ -85,4 +85,47 @@ class CatalogTest {
         }
         assertTrue(channels.all { ch -> ch.sources.all { it.url.startsWith("http") } })
     }
+
+    private fun asset(name: String) =
+        listOf("src/main/assets/$name", "iptv/src/main/assets/$name").map(::File).first { it.exists() }.readText()
+
+    /** Both bundled lists together: no channel twice, Nat Geo Abu Dhabi present, Free-TV backups merged in. */
+    @Test
+    fun mergedCatalogHasNoDuplicatesAndNatGeo() {
+        val ara = Catalog.build(M3uParser.parse(asset("ara.m3u")), emptyMap())
+        val free = Catalog.build(
+            M3uParser.parse(asset("freetv_arab.m3u")).filter { com.arabtv.iptv.data.ChannelRepository.keepFreeTv(it) },
+            emptyMap(),
+        )
+        val merged = Catalog.merge(listOf(ara, free))
+        println("ara=${ara.size} freetv=${free.size} merged=${merged.size}")
+        val dupes = merged.groupBy { Catalog.normalizedName(it.name) }.filter { it.value.size > 1 }
+        assertTrue("duplicates: ${dupes.keys}", dupes.isEmpty())
+
+        val natGeo = merged.single { it.name == "National Geographic Abu Dhabi" }
+        assertTrue(Category.DOCUMENTARY in natGeo.categories)
+        assertTrue(natGeo.sources.any { it.url.contains("mangomolo.com/nagtv") })
+
+        // Al Jazeera is in both lists under different ids: one channel with both lists' links.
+        val aj = merged.filter { Catalog.normalizedName(it.name) == "aljazeera" }
+        assertEquals(1, aj.size)
+        assertTrue(aj[0].id.startsWith("id:AlJazeera.qa@"))
+        assertTrue(aj[0].sources.size >= 2)
+
+        assertTrue(merged.any { it.name == "MBC 3" && Category.KIDS in it.categories })
+        val kids = merged.count { Category.KIDS in it.categories }
+        val docs = merged.count { Category.DOCUMENTARY in it.categories }
+        val news = merged.count { Category.NEWS in it.categories }
+        println("news=$news docs=$docs kids=$kids")
+        assertFalse(merged.any { it.name.contains("Persia") || it.name.contains('\u24C8') })
+    }
+
+    @Test
+    fun normalizedNamesMatchAcrossSpellings() {
+        assertEquals("aljazeera", Catalog.normalizedName("Al Jazeera العربية"))
+        assertEquals("aljazeera", Catalog.normalizedName("Al-Jazeera HD"))
+        assertEquals(Catalog.normalizedName("Sky News Arabia (1080p)"), Catalog.normalizedName("Sky News العربية"))
+        assertEquals(Catalog.normalizedName("France 24 Arabic"), Catalog.normalizedName("France 24 العربية Ⓨ"))
+        assertTrue(Catalog.normalizedName("Al Jazeera Mubasher") != Catalog.normalizedName("Al Jazeera"))
+    }
 }

@@ -3,6 +3,11 @@ package com.arabtv.iptv.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -45,27 +50,32 @@ import com.arabtv.iptv.data.Channel
 import com.arabtv.iptv.data.flagEmoji
 
 @Composable
-fun ChannelLogo(channel: Channel, title: String, modifier: Modifier = Modifier) {
+fun ChannelLogo(channel: Channel, title: String, modifier: Modifier = Modifier, plain: Boolean = false) {
     val fallback = @Composable {
         Box(
-            Modifier.fillMaxSize().background(Brand.copy(alpha = 0.35f)),
+            Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                title.trim().take(2),
-                style = MaterialTheme.typography.headlineSmall,
+                title.trim(),
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
             )
         }
     }
-    Box(modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF242E3A)), contentAlignment = Alignment.Center) {
+    Box(
+        if (plain) modifier else modifier.clip(RoundedCornerShape(10.dp)).background(Surface3),
+        contentAlignment = Alignment.Center,
+    ) {
         if (channel.logo == null) fallback()
         else SubcomposeAsyncImage(
             model = channel.logo,
             contentDescription = null,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize().padding(8.dp),
+            modifier = Modifier.fillMaxSize().padding(if (plain) 0.dp else 8.dp),
             loading = { fallback() },
             error = { fallback() },
         )
@@ -85,55 +95,84 @@ fun Badge(text: String, color: Color = Surface2, textColor: Color = MaterialThem
     }
 }
 
-/** Grid tile. Long-press (or long OK on a remote) opens the channel's menu. */
+/**
+ * A 16:9 channel tile in the style of streaming apps: logo on a soft gradient, number in the
+ * corner, title and what's on below. Focus (D-pad) or press lifts it; long-press opens its menu.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChannelCard(
+fun ChannelTile(
     channel: Channel,
     title: String,
+    number: Int,
+    now: String?,
     favorite: Boolean,
     health: Boolean?,
-    playing: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onFocused: (() -> Unit)? = null,
 ) {
     val source = remember { MutableInteractionSource() }
-    Card(
-        modifier = modifier
-            .combinedClickable(interactionSource = source, indication = LocalIndication.current, onClick = onClick, onLongClick = onLongClick),
-        colors = CardDefaults.cardColors(containerColor = if (playing) Brand.copy(alpha = 0.45f) else Surface1),
-        border = focusBorder(source),
-        shape = RoundedCornerShape(14.dp),
-    ) {
-        Column(Modifier.padding(10.dp)) {
-            Box {
-                ChannelLogo(channel, title, Modifier.fillMaxWidth().aspectRatio(16f / 10f))
-                if (favorite) {
-                    Icon(
-                        Icons.Filled.Star, null, tint = Gold,
-                        modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(18.dp),
-                    )
-                }
+    val focused by source.collectIsFocusedAsState()
+    Column(modifier.focusScale(source)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Brush.linearGradient(listOf(Surface3, Surface1)))
+                .then(if (focused) Modifier.border(3.dp, Color.White, RoundedCornerShape(12.dp)) else Modifier)
+                .onFocusChanged { if (it.isFocused) onFocused?.invoke() }
+                .combinedClickable(
+                    interactionSource = source,
+                    indication = LocalIndication.current,
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            ChannelLogo(channel, title, Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 14.dp), plain = true)
+            if (number > 0) {
+                Text(
+                    number.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary,
+                    modifier = Modifier.align(Alignment.TopStart).padding(horizontal = 8.dp, vertical = 5.dp),
+                )
+            }
+            Row(
+                Modifier.align(Alignment.TopEnd).padding(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (favorite) Icon(Icons.Filled.Star, null, tint = Gold, modifier = Modifier.size(15.dp))
                 if (health != null) {
                     Box(
-                        Modifier.align(Alignment.TopStart).padding(6.dp).size(9.dp).clip(CircleShape)
-                            .background(if (health) Color(0xFF3FD07A) else Color(0xFFE5534B)),
+                        Modifier.size(8.dp).clip(CircleShape)
+                            .background(if (health) Color(0xFF3FD07A) else LiveRed),
                     )
                 }
             }
-            Spacer(Modifier.size(8.dp))
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.size(4.dp))
-            ChannelBadges(channel, health)
+            if (channel.geoBlocked || health == false) {
+                Box(Modifier.matchParentSize().background(Color(0x66000000)))
+            }
         }
+        Spacer(Modifier.size(6.dp))
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            color = if (focused) Color.White else TextPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            now ?: listOfNotNull(flagEmoji(channel.country).ifEmpty { null }, channel.bestQuality).joinToString("  "),
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

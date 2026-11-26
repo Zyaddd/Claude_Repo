@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import com.arabtv.iptv.data.ChannelRepository
+import com.arabtv.iptv.data.GuideRepository
 import com.arabtv.iptv.data.Prefs
 import com.arabtv.iptv.remote.ReceiverHub
 
@@ -14,6 +15,7 @@ class ArabTvApp : Application() {
     val prefs: Prefs by lazy { Prefs(this, isTv) }
     val repository: ChannelRepository by lazy { ChannelRepository(this) }
     val receiver: ReceiverHub by lazy { ReceiverHub(this) }
+    val guide: GuideRepository by lazy { GuideRepository(this) }
 
     companion object {
         fun detectTv(context: Context): Boolean {

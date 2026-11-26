@@ -31,29 +31,52 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Updates only install over the existing app when every build is signed with the same key.
+      # Preferred: the secret SIGNING_PASSWORD (a long password you choose). The first build then
+      # creates a key, stores it in the repository encrypted with that password (AES-256), and
+      # every later build decrypts and reuses it. Without the secret, builds get a temporary key.
       - name: Prepare signing key
         env:
           KS_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
           KS_PASS: ${{ secrets.SIGNING_PASSWORD }}
         run: |
           KS="$RUNNER_TEMP/release.jks"
+          ENC="iptv/signing/arabtv.jks.enc"
+          ALIAS=arabtv
           if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ]; then
             echo "$KS_B64" | base64 -d > "$KS"
+            ALIAS=widgets
             PASS="$KS_PASS"
-            echo "::add-mask::$PASS"
+            echo "SIGNING_NOTE=Signed with the permanent key: installs as an update." >> "$GITHUB_ENV"
+          elif [ -n "$KS_PASS" ]; then
+            PASS="$KS_PASS"
+            if [ -f "$ENC" ]; then
+              openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$ENC" -out "$KS" -pass env:KS_PASS \
+                || { echo "::error::Could not decrypt $ENC: SIGNING_PASSWORD changed?"; exit 1; }
+            else
+              keytool -genkeypair -keystore "$KS" -storetype PKCS12 -storepass "$PASS" -keypass "$PASS" \
+                -alias "$ALIAS" -keyalg RSA -keysize 4096 -validity 20000 -dname "CN=Arab TV"
+              mkdir -p "$(dirname "$ENC")"
+              openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in "$KS" -out "$ENC" -pass env:KS_PASS
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add "$ENC"
+              git commit -m "Add the encrypted Arab TV signing key"
+              git push origin "HEAD:${GITHUB_REF_NAME}"
+            fi
             echo "SIGNING_NOTE=Signed with the permanent key: installs as an update." >> "$GITHUB_ENV"
           else
             PASS="$(openssl rand -hex 16)"
-            echo "::add-mask::$PASS"
-            keytool -genkeypair -keystore "$KS" -storepass "$PASS" -keypass "$PASS" -alias widgets \
+            keytool -genkeypair -keystore "$KS" -storepass "$PASS" -keypass "$PASS" -alias "$ALIAS" \
               -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Arab TV"
-            echo "SIGNING_NOTE=Signed with a temporary key: uninstall the previous version before installing." >> "$GITHUB_ENV"
+            echo "SIGNING_NOTE=Signed with a temporary key: uninstall the previous version before installing. Add the SIGNING_PASSWORD secret to fix this." >> "$GITHUB_ENV"
           fi
+          echo "::add-mask::$PASS"
           {
             echo "SIGNING_KEYSTORE=$KS"
             echo "SIGNING_STORE_PASSWORD=$PASS"
             echo "SIGNING_KEY_PASSWORD=$PASS"
-            echo "SIGNING_KEY_ALIAS=widgets"
+            echo "SIGNING_KEY_ALIAS=$ALIAS"
           } >> "$GITHUB_ENV"
 
       - name: Unit tests (playlist parsing, categories, remote protocol)
@@ -92,5 +115,6 @@ jobs:
           gh release create arabtv ArabTV.apk \
             --target "${{ github.sha }}" \
             --title "Arab TV 1.0.${{ github.run_number }}" \
-            --notes "Built from ${{ github.sha }} (branch ${{ github.ref_name }}). ${{ env.SIGNING_NOTE }}" \
+            --notes "versionCode: ${{ github.run_number }}
+          Built from ${{ github.sha }} (branch ${{ github.ref_name }}). ${{ env.SIGNING_NOTE }}" \
             --latest=false

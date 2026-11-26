@@ -12,6 +12,10 @@ data class StreamSource(
     val referrer: String? = null,
     val quality: String? = null,
 ) {
+    /** A YouTube page rather than a media stream: opened in the YouTube app instead of the player. */
+    val isYoutube: Boolean
+        get() = url.contains("youtube.com/", ignoreCase = true) || url.contains("youtu.be/", ignoreCase = true)
+
     fun toJson(): JSONObject = JSONObject().apply {
         put("url", url)
         userAgent?.let { put("ua", it) }
@@ -53,7 +57,13 @@ data class Channel(
     val notAlwaysOn: Boolean = false,
     /** Name of the user playlist this came from; null for the built-in catalog. */
     val playlist: String? = null,
+    /** The playlist's tvg-id without its "@feed" suffix, used to match the same channel across sources. */
+    val tvgId: String? = null,
 ) {
+    /** Sources the built-in player can play (YouTube pages open in the YouTube app instead). */
+    val playableSources: List<StreamSource> get() = sources.filterNot { it.isYoutube }
+    val youtubeSource: StreamSource? get() = sources.firstOrNull { it.isYoutube }
+
     fun displayName(arabic: Boolean): String = if (arabic && !nameAr.isNullOrBlank()) nameAr else name
 
     val bestQuality: String?

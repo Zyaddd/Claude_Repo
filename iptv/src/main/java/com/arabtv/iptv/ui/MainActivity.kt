@@ -97,6 +97,10 @@ class MainActivity : AppCompatActivity() {
                     UiMessage.BadCode -> context.getString(R.string.msg_bad_code)
                     UiMessage.BadPlaylist -> context.getString(R.string.msg_bad_playlist)
                     UiMessage.WrongPin -> context.getString(R.string.msg_wrong_pin)
+                    UiMessage.NoApp -> context.getString(R.string.msg_no_app)
+                    UiMessage.NoChannelNumber -> context.getString(R.string.msg_no_number)
+                    UiMessage.NoNewChannels -> context.getString(R.string.msg_no_new_channels)
+                    is UiMessage.ChannelsAdded -> context.getString(R.string.msg_channels_added, m.count)
                 }
                 snackbar.showSnackbar(text)
             }
@@ -138,6 +142,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (tvSheetOpen) TvSheet(vm, tvSheetFor) { tvSheetOpen = false; tvSheetFor = null }
+
+        val newChannels by vm.newChannelsDialog.collectAsState()
+        newChannels?.let { NewChannelsDialog(vm, it) }
+
+        val update by vm.updateState.collectAsState()
+        val updateDismissed by vm.updatePromptDismissed.collectAsState()
+        val manualCheck by vm.manualUpdateCheck.collectAsState()
+        UpdateDialog(vm, update, updateDismissed, manualCheck)
 
         pinRequest?.let { disable ->
             TextFieldsDialog(
@@ -228,6 +240,18 @@ class MainActivity : AppCompatActivity() {
     // ---- TV remote keys -----------------------------------------------------------------------
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Number keys pick a channel by number (not while typing in search or settings).
+        val digit = when (event.keyCode) {
+            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> event.keyCode - KeyEvent.KEYCODE_0
+            in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9 -> event.keyCode - KeyEvent.KEYCODE_NUMPAD_0
+            else -> -1
+        }
+        val typing = vm.screen.value == Screen.SETTINGS ||
+            (vm.screen.value == Screen.HOME && vm.section.value == Section.SEARCH)
+        if (digit >= 0 && !typing) {
+            if (event.action == KeyEvent.ACTION_DOWN) vm.typeDigit(digit)
+            return true
+        }
         if (vm.screen.value != Screen.PLAYER) return super.dispatchKeyEvent(event)
         val down = event.action == KeyEvent.ACTION_DOWN
         val controls = vm.controllerVisible

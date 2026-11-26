@@ -154,6 +154,8 @@ fun PlayerScreen(
                     fullscreenLayout = fullscreen || vm.isTv,
                     buffering = state.buffering,
                     switching = state.switching,
+                    repairing = state.repairing,
+                    showOsd = settings.channelOsd,
                     error = state.error,
                     castDevice = castDevice,
                     favorite = channel.id in settings.favorites,
@@ -197,23 +199,28 @@ private fun PlayerOverlays(
     fullscreenLayout: Boolean,
     buffering: Boolean,
     switching: Boolean,
+    repairing: Boolean,
+    showOsd: Boolean,
     error: String?,
     castDevice: String?,
     favorite: Boolean,
     onOpenTvSheet: (Channel?) -> Unit,
 ) {
-    // On TV, flash the channel name for a few seconds after every change.
-    var osd by remember { mutableStateOf(true) }
-    LaunchedEffect(channel.id) {
-        osd = true
-        delay(4000)
+    // Flash the channel name for 2 seconds after every change, then get out of the way.
+    var osd by remember { mutableStateOf(showOsd) }
+    LaunchedEffect(channel.id, showOsd) {
+        osd = showOsd
+        delay(2000)
         osd = false
     }
+    val guide by vm.guide.collectAsState()
+    val number by vm.numberEntry.collectAsState()
+    val (nowP, nextP) = com.arabtv.iptv.data.GuideRepository.nowAndNext(guide[channel.id])
     Box(Modifier.fillMaxSize()) {
         if (controls || osd || error != null) {
             Row(
                 Modifier.fillMaxWidth()
-                    .background(Color(0x99000000))
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xCC000000), Color.Transparent)))
                     .then(if (fullscreenLayout) Modifier.padding(horizontal = 8.dp) else Modifier)
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -235,12 +242,19 @@ private fun PlayerOverlays(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val pos = vm.playback.queue.indexOfFirst { it.id == channel.id }
-                    if (vm.isTv && pos >= 0) {
+                    val num = vm.numberOf(channel)
+                    val sub = listOfNotNull(
+                        num.takeIf { it > 0 }?.toString(),
+                        nowP?.let { stringResource(R.string.now_playing, it.title) },
+                        nextP?.let { stringResource(R.string.next_up, it.title) },
+                    ).joinToString("  ·  ")
+                    if (sub.isNotEmpty()) {
                         Text(
-                            stringResource(R.string.channel_position, pos + 1, vm.playback.queue.size),
-                            color = Color(0xFFB0BAC5),
+                            sub,
+                            color = Color(0xFFD0D5DD),
                             style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -265,9 +279,19 @@ private fun PlayerOverlays(
             }
         }
 
-        if (switching && error == null && castDevice == null) {
+        if (number.isNotEmpty()) {
             Text(
-                stringResource(R.string.trying_other_source),
+                number,
+                style = MaterialTheme.typography.displaySmall,
+                color = Color.White,
+                modifier = Modifier.align(Alignment.TopEnd).padding(24.dp)
+                    .background(Color(0xAA000000), RoundedCornerShape(12.dp)).padding(horizontal = 18.dp, vertical = 6.dp),
+            )
+        }
+
+        if ((switching || repairing) && error == null && castDevice == null) {
+            Text(
+                stringResource(if (repairing) R.string.repairing_link else R.string.trying_other_source),
                 color = Color.White,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 72.dp)
                     .background(Color(0x99000000), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 6.dp),

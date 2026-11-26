@@ -1,0 +1,56 @@
+{
+  "note": "Only official sources: broadcasters' own YouTube channels and official streaming apps. Edit this file to add more.",
+  "sections": [
+    {
+      "id": "egypt",
+      "title": "Egyptian classics",
+      "titleAr": "كلاسيكيات الكرتون المصري",
+      "items": [
+        { "id": "bakkar", "title": "Bakkar", "titleAr": "بكار", "by": "Maspero (official)", "byAr": "ماسبيرو (رسمي)",
+          "colors": ["#C2410C", "#7C2D12"], "action": { "type": "youtube", "query": "بكار ماسبيرو", "url": "https://www.youtube.com/@MasperoKids/search?query=%D8%A8%D9%83%D8%A7%D8%B1" } },
+        { "id": "bogy", "title": "Bogy & Tamtam", "titleAr": "بوجي وطمطم", "by": "Maspero (official)", "byAr": "ماسبيرو (رسمي)",
+          "colors": ["#0E7490", "#164E63"], "action": { "type": "youtube", "query": "بوجي وطمطم ماسبيرو" } },
+        { "id": "maspero_kids", "title": "Maspero Kids", "titleAr": "ماسبيرو أطفال", "by": "Egyptian TV archive", "byAr": "أرشيف التلفزيون المصري",
+          "colors": ["#B91C1C", "#450A0A"], "action": { "type": "youtube", "query": "ماسبيرو أطفال", "url": "https://www.youtube.com/@MasperoKids" } },
+        { "id": "maspero_zaman", "title": "Maspero Zaman", "titleAr": "ماسبيرو زمان", "by": "Classic Egyptian TV", "byAr": "التلفزيون المصري زمان",
+          "colors": ["#A16207", "#422006"], "action": { "type": "youtube", "query": "ماسبيرو زمان كرتون" } }
+      ]
+    },
+    {
+      "id": "arab",
+      "title": "Arab favourites",
+      "titleAr": "من ذكريات الطفولة العربية",
+      "items": [
+        { "id": "spacetoon", "title": "Spacetoon", "titleAr": "سبيستون", "by": "Spacetoon (official)", "byAr": "سبيستون (رسمي)",
+          "colors": ["#7C3AED", "#2E1065"], "action": { "type": "youtube", "query": "سبيستون" } },
+        { "id": "majid", "title": "Majid", "titleAr": "ماجد", "by": "Majid Kids (official)", "byAr": "قناة ماجد (رسمي)",
+          "colors": ["#16A34A", "#14532D"], "action": { "type": "youtube", "query": "ماجد للأطفال", "url": "https://www.youtube.com/@majidkids" } },
+        { "id": "simsim", "title": "Iftah Ya Simsim", "titleAr": "افتح يا سمسم", "by": "Sesame Workshop", "byAr": "افتح يا سمسم",
+          "colors": ["#EAB308", "#713F12"], "action": { "type": "youtube", "query": "افتح يا سمسم" } },
+        { "id": "freej", "title": "Freej", "titleAr": "فريج", "by": "Lammtara Pictures", "byAr": "لمتارا",
+          "colors": ["#DB2777", "#500724"], "action": { "type": "youtube", "query": "فريج كرتون" } },
+        { "id": "shaabiat", "title": "Shaabiat Al Cartoon", "titleAr": "شعبية الكرتون", "by": "Dubai", "byAr": "دبي",
+          "colors": ["#EA580C", "#431407"], "action": { "type": "youtube", "query": "شعبية الكرتون" } },
+        { "id": "mansour", "title": "Mansour", "titleAr": "مغامرات منصور", "by": "Mubadala (official)", "byAr": "مبادلة (رسمي)",
+          "colors": ["#0284C7", "#082F49"], "action": { "type": "youtube", "query": "مغامرات منصور" } }
+      ]
+    },
+    {
+      "id": "apps",
+      "title": "Disney & more in Arabic (official apps)",
+      "titleAr": "ديزني وغيرها بالعربي (تطبيقات رسمية)",
+      "items": [
+        { "id": "disney", "title": "Disney+", "titleAr": "ديزني+", "by": "Arabic & Egyptian dubs", "byAr": "دبلجة مصرية وفصحى",
+          "colors": ["#1D4ED8", "#0B1A4A"], "action": { "type": "app", "package": "com.disney.disneyplus", "name": "Disney+" } },
+        { "id": "shahid", "title": "Shahid", "titleAr": "شاهد", "by": "MBC 3 shows", "byAr": "برامج إم بي سي 3",
+          "colors": ["#059669", "#022C22"], "action": { "type": "app", "package": "net.mbc.shahid", "name": "Shahid" } },
+        { "id": "spacetoon_go", "title": "Spacetoon Go", "titleAr": "سبيستون غو", "by": "Spacetoon", "byAr": "سبيستون",
+          "colors": ["#9333EA", "#3B0764"], "action": { "type": "app", "name": "Spacetoon Go" } },
+        { "id": "adtv", "title": "ADtv", "titleAr": "ADtv", "by": "Majid & Abu Dhabi Media", "byAr": "ماجد وأبوظبي للإعلام",
+          "colors": ["#475569", "#0F172A"], "action": { "type": "app", "name": "ADtv" } },
+        { "id": "ytkids", "title": "YouTube Kids", "titleAr": "يوتيوب كيدز", "by": "Google", "byAr": "جوجل",
+          "colors": ["#DC2626", "#450A0A"], "action": { "type": "app", "package": "com.google.android.apps.youtube.kids", "name": "YouTube Kids" } }
+      ]
+    }
+  ]
+}

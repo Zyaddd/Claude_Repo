@@ -16,6 +16,9 @@ android {
         targetSdk = 34
         versionCode = ciVersionCode
         versionName = "1.0.$ciVersionCode"
+        // The repository whose "arabtv" release the in-app updater checks (set by CI).
+        val repo = System.getenv("GITHUB_REPOSITORY") ?: "Zyaddd/Claude_Repo"
+        buildConfigField("String", "UPDATE_REPO", "\"$repo\"")
     }
 
     // Signing comes from environment variables set by the CI workflow (never committed).
@@ -41,6 +44,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
@@ -89,4 +93,5 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
 }

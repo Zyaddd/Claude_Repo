@@ -33,6 +33,14 @@ data class Settings(
     val lastChannel: String? = null,
     val kidsMode: Boolean = false,
     val kidsPin: String = "",
+    /** Built-in channels the user has seen; anything else waits under "Find new channels". Null = not seeded yet. */
+    val knownIds: Set<String>? = null,
+    val hiddenIds: Set<String> = emptySet(),
+    /** Show the channel name for 2 seconds after switching. */
+    val channelOsd: Boolean = true,
+    val showGuide: Boolean = true,
+    val guideUrls: String = DEFAULT_GUIDE_URLS,
+    val autoUpdate: Boolean = true,
 )
 
 class Prefs(context: Context, isTv: Boolean) {
@@ -51,6 +59,17 @@ class Prefs(context: Context, isTv: Boolean) {
 
     fun addRecent(id: String) = edit { s ->
         s.copy(recents = (listOf(id) + (s.recents - id)).take(MAX_RECENTS), lastChannel = id)
+    }
+
+    /** Moves [id] one place earlier (-1) or later (+1) in the favorites order. */
+    fun moveFavorite(id: String, step: Int) = edit { s ->
+        val list = s.favorites.toMutableList()
+        val i = list.indexOf(id)
+        val j = i + step
+        if (i < 0 || j !in list.indices) return@edit s
+        list.removeAt(i)
+        list.add(j, id)
+        s.copy(favorites = list)
     }
 
     fun newPairingCode() = edit { it.copy(pairingCode = generateCode()) }
@@ -81,6 +100,12 @@ class Prefs(context: Context, isTv: Boolean) {
             lastChannel = sp.getString("lastChannel", null),
             kidsMode = sp.getBoolean("kidsMode", false),
             kidsPin = sp.getString("kidsPin", "") ?: "",
+            knownIds = if (sp.contains("knownIds")) strings("knownIds").toSet() else null,
+            hiddenIds = strings("hiddenIds").toSet(),
+            channelOsd = sp.getBoolean("channelOsd", true),
+            showGuide = sp.getBoolean("showGuide", true),
+            guideUrls = sp.getString("guideUrls", null)?.ifBlank { null } ?: DEFAULT_GUIDE_URLS,
+            autoUpdate = sp.getBoolean("autoUpdate", true),
         )
         save(s)
         return s
@@ -105,6 +130,15 @@ class Prefs(context: Context, isTv: Boolean) {
             .putString("lastChannel", s.lastChannel)
             .putBoolean("kidsMode", s.kidsMode)
             .putString("kidsPin", s.kidsPin)
+            .putString("hiddenIds", JSONArray(s.hiddenIds.toList()).toString())
+            .putBoolean("channelOsd", s.channelOsd)
+            .putBoolean("showGuide", s.showGuide)
+            .putString("guideUrls", s.guideUrls)
+            .putBoolean("autoUpdate", s.autoUpdate)
+            .also { e ->
+                val known = s.knownIds
+                if (known != null) e.putString("knownIds", JSONArray(known.toList()).toString()) else e.remove("knownIds")
+            }
             .apply()
     }
 
@@ -126,6 +160,12 @@ class Prefs(context: Context, isTv: Boolean) {
     companion object {
         const val DEFAULT_RELAY = "https://ntfy.sh"
         const val DEFAULT_PORT = 8642
+
+        /** Free XMLTV guides covering Arabic channels (Saudi, Egyptian and Al Jazeera feeds). */
+        const val DEFAULT_GUIDE_URLS =
+            "https://epgshare01.online/epgshare01/epg_ripper_SA1.xml.gz\n" +
+                "https://epgshare01.online/epgshare01/epg_ripper_EG1.xml.gz\n" +
+                "https://epgshare01.online/epgshare01/epg_ripper_ALJAZEERA1.xml.gz"
         private const val MAX_RECENTS = 40
     }
 }
