@@ -429,7 +429,8 @@ private fun PlayerOptionsDialog(
                     }
                     "source" -> {
                         val links = remember(channel.id) { vm.linksOf(channel) }
-                        val playing = vm.playback.state.value.let { st -> st.channel?.sources?.getOrNull(st.sourceIndex)?.url }
+                        val st by vm.playback.state.collectAsState()
+                        val playing = st.channel?.sources?.getOrNull(st.sourceIndex)?.url
                         Text(
                             stringResource(R.string.source_help),
                             style = MaterialTheme.typography.bodySmall,
