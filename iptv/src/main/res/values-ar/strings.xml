@@ -77,6 +77,8 @@
     <string name="chromecast_tap">اضغط أيقونة البث واختر التلفاز</string>
     <string name="msg_sent">أُرسلت إلى %1$s</string>
     <string name="msg_send_failed">تعذّر الوصول إلى %1$s: %2$s. هل التطبيق مفتوح على التلفاز؟</string>
+    <string name="msg_send_refused">%1$s ردّ، لكن التطبيق لا يستقبل عليه. افتح التطبيق على التلفاز وتأكد أن الإعدادات ← استقبال التلفاز مفعّل.</string>
+    <string name="msg_send_no_answer">لا ردّ من %1$s. تأكد أن التلفاز يعمل وعلى نفس الشبكة وبنفس العنوان، وأن خاصية AP Isolation مُطفأة في الراوتر.</string>
     <string name="msg_from_phone">تشغيل من %1$s</string>
     <string name="msg_bad_code">الرمز غير صحيح. يتكوّن من 10 أحرف وأرقام.</string>
     <string name="msg_bad_playlist">أدخل رابط قائمة يبدأ بـ http:// أو https://</string>

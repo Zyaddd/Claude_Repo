@@ -164,6 +164,7 @@ fun ChannelRow(
         onClick = onClick,
         interactionSource = source,
         color = if (playing) Brand.copy(alpha = 0.45f) else Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         border = focusBorder(source),
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth(),

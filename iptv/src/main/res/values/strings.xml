@@ -77,6 +77,8 @@
     <string name="chromecast_tap">Tap the Cast icon and pick your TV</string>
     <string name="msg_sent">Sent to %1$s</string>
     <string name="msg_send_failed">Couldn’t reach %1$s: %2$s. Is Arab TV open on the TV?</string>
+    <string name="msg_send_refused">%1$s answered, but Arab TV isn’t receiving there. Open Arab TV on the TV and check Settings → TV receiver is on.</string>
+    <string name="msg_send_no_answer">No answer from %1$s. Check the TV is on and on this Wi-Fi at that address, and that AP Isolation is off on the router.</string>
     <string name="msg_from_phone">Playing from %1$s</string>
     <string name="msg_bad_code">That code isn’t valid. It has 10 letters and digits.</string>
     <string name="msg_bad_playlist">Enter a playlist link starting with http:// or https://</string>

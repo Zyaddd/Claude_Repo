@@ -87,7 +87,11 @@ class MainActivity : AppCompatActivity() {
             vm.messages.collect { m ->
                 val text = when (m) {
                     is UiMessage.SentTo -> context.getString(R.string.msg_sent, m.tv)
-                    is UiMessage.SendFailed -> context.getString(R.string.msg_send_failed, m.tv, m.reason)
+                    is UiMessage.SendFailed -> when (m.kind) {
+                        SendError.REFUSED -> context.getString(R.string.msg_send_refused, m.tv)
+                        SendError.NO_ANSWER -> context.getString(R.string.msg_send_no_answer, m.tv)
+                        SendError.OTHER -> context.getString(R.string.msg_send_failed, m.tv, m.reason)
+                    }
                     is UiMessage.FromPhone -> context.getString(R.string.msg_from_phone, m.from)
                     is UiMessage.Casting -> context.getString(R.string.casting_to, m.device)
                     UiMessage.BadCode -> context.getString(R.string.msg_bad_code)

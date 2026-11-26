@@ -37,12 +37,32 @@ import kotlinx.coroutines.sync.withPermit
 
 enum class Screen { HOME, PLAYER, SETTINGS }
 
+/** Why a command did not reach a TV, so the message can say what to check. */
+enum class SendError {
+    /** Something is at that address but nothing listens on the port: the app is closed or receiving is off. */
+    REFUSED,
+    /** Nothing answered: wrong address, TV asleep or off Wi-Fi, or the router isolates Wi-Fi devices. */
+    NO_ANSWER,
+    OTHER,
+}
+
+fun classifySendError(e: Throwable): SendError {
+    val text = generateSequence(e) { it.cause }.take(6)
+        .joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }.lowercase()
+    return when {
+        "refused" in text -> SendError.REFUSED
+        "timeout" in text || "timed out" in text || "unreachable" in text || "no route" in text ->
+            SendError.NO_ANSWER
+        else -> SendError.OTHER
+    }
+}
+
 enum class Tab { NEWS, DOCUMENTARY, KIDS, ALL, FAVORITES, RECENT, PLAYLISTS }
 
 /** Messages for the snackbar; resolved to text in the UI so they follow the app language. */
 sealed class UiMessage {
     data class SentTo(val tv: String) : UiMessage()
-    data class SendFailed(val tv: String, val reason: String) : UiMessage()
+    data class SendFailed(val tv: String, val reason: String, val kind: SendError) : UiMessage()
     data class FromPhone(val from: String) : UiMessage()
     data class Casting(val device: String) : UiMessage()
     data object BadCode : UiMessage()
@@ -306,7 +326,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 Sender.send(tv, cmd, settings.value.relayServer)
                 if (cmd.action == Action.PLAY) _messages.tryEmit(UiMessage.SentTo(tv.label))
             } catch (e: Exception) {
-                _messages.tryEmit(UiMessage.SendFailed(tv.label, e.message ?: e.javaClass.simpleName))
+                val kind = if (tv is TvTarget.Lan) classifySendError(e) else SendError.OTHER
+                _messages.tryEmit(UiMessage.SendFailed(tv.label, e.message ?: e.javaClass.simpleName, kind))
             }
         }
     }
