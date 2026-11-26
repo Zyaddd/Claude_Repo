@@ -18,6 +18,20 @@ object Catalog {
         """(?i)\bkids?\b|kid's|children|cartoon|\btoon|animation|anime\b|spacetoon|atfal|baraem|\bjeem\b|majid kids|mbc ?3|semsem|toyor|karameesh|koogi|babyfirst|أطفال|اطفال|كرتون|براعم|طيور|سبيستون|سبيس تون""",
     )
 
+    private val quranWords = Regex(
+        """(?i)qur'?an|\bkoran|\bsunnah?\b|\bharam\b|makkah|mecca|madinah|medina|nabawi|iqraa|\bal ?majd\b|huda tv|noor dubai|قرآن|القرآن|القران|السنة النبوية|الحرم|مكة|المدينة|النبوي|اقرأ|إقرأ|المجد""",
+    )
+
+    /** Channels that lead the Quran section: Al-Haram (Makkah), then Al-Masjid An-Nabawi (Madinah). */
+    val QURAN_PINNED = listOf("AlQuranAlKareemTV.sa", "AlSunnahAlNabawiyahTV.sa")
+
+    /** Links known to point at a different channel than the one they are listed under. */
+    private val wrongLinks = mapOf(
+        // Listed as Al Quran Al Kareem in Free-TV, but served from Al Ekhbariya's path.
+        "alqurankareemtv.sa" to listOf("al-ekhbaria"),
+        "alquranalkareemtv.sa" to listOf("al-ekhbaria"),
+    )
+
     /**
      * @param arabicNames channel id (without the "@feed" suffix) -> Arabic name.
      * @param playlist label for a user playlist, or null for the built-in catalog.
@@ -36,6 +50,8 @@ object Catalog {
                 referrer = e.referrer,
                 quality = qualityRegex.find(e.title)?.groupValues?.get(1),
             )
+            val bad = wrongLinks[tvgId.substringBefore('@').lowercase()].orEmpty()
+            if (bad.any { src.url.contains(it, ignoreCase = true) }) continue
             val acc = byKey.getOrPut(key) {
                 val id = (if (playlist != null) "pl:$playlist|" else "") + key
                 Acc(e, id, ArrayList())
@@ -43,7 +59,7 @@ object Catalog {
             if (acc.sources.none { it.url == src.url }) acc.sources += src
         }
 
-        return byKey.values.map { acc ->
+        return byKey.values.filter { it.sources.isNotEmpty() }.map { acc ->
             val e = acc.first
             val tvgId = e.attrs["tvg-id"]?.trim().orEmpty()
             val baseId = tvgId.substringBefore('@')
@@ -73,7 +89,7 @@ object Catalog {
             .replace(Regex("\\s+"), " ").trim()
 
     private val nameNoise = Regex(
-        """(?i)\b(tv|hd|fhd|uhd|sd|channel|live|arabic|arabia|arabi)\b|العربية|عربية|قناة|تلفزيون|تليفزيون|الفضائية|فضائية""",
+        """(?i)\b(tv|television|hd|fhd|uhd|sd|channel|live|arabic|arabia|arabi)\b|العربية|عربية|قناة|تلفزيون|تليفزيون|الفضائية|فضائية""",
     )
 
     /**
@@ -139,6 +155,8 @@ object Catalog {
         if (Category.NEWS !in result && newsWords.containsMatchIn(text)) result += Category.NEWS
         if (Category.DOCUMENTARY !in result && docWords.containsMatchIn(text)) result += Category.DOCUMENTARY
         if (Category.KIDS !in result && kidsWords.containsMatchIn(text)) result += Category.KIDS
+        // Islamic channels only (the "Religious" group also holds Christian channels).
+        if (quranWords.containsMatchIn(text)) result += Category.QURAN
         return result.ifEmpty { mutableSetOf(Category.OTHER) }
     }
 

@@ -54,7 +54,7 @@ import kotlinx.coroutines.sync.withPermit
 enum class Screen { HOME, PLAYER, SETTINGS }
 
 /** The pages of the home screen's top navigation. */
-enum class Section { HOME, NEWS, DOCUMENTARY, KIDS, LIBRARY, MY_LIST, ALL, PLAYLISTS, SEARCH }
+enum class Section { HOME, NEWS, DOCUMENTARY, KIDS, QURAN, LIBRARY, MY_LIST, ALL, PLAYLISTS, SEARCH }
 
 /** Why a command did not reach a TV, so the message can say what to check. */
 enum class SendError {
@@ -96,8 +96,12 @@ private fun Channel.rank(): Int = when {
     Category.NEWS in categories -> 0
     Category.DOCUMENTARY in categories -> 1
     Category.KIDS in categories -> 2
-    else -> 3
+    Category.QURAN in categories -> 3
+    else -> 4
 }
+
+/** What kids mode lets through without the PIN: cartoons and Quran. */
+fun Channel.allowedForKids(): Boolean = Category.KIDS in categories || Category.QURAN in categories
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val arabTv = app as ArabTvApp
@@ -368,6 +372,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Section.NEWS -> all.filter { Category.NEWS in it.categories && it.playlist == null }
             Section.DOCUMENTARY -> all.filter { Category.DOCUMENTARY in it.categories && it.playlist == null }
             Section.KIDS -> all.filter { Category.KIDS in it.categories && (it.playlist == null || s.kidsMode) }
+            Section.QURAN -> all.filter { Category.QURAN in it.categories && it.playlist == null }
             Section.ALL, Section.HOME, Section.LIBRARY -> all.filter { it.playlist == null }
             Section.PLAYLISTS -> all.filter { it.playlist != null }
             Section.MY_LIST -> s.favorites.mapNotNull { id -> all.firstOrNull { it.id == id } }
@@ -387,6 +392,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (section != Section.MY_LIST) {
             // Working streams first, then unknown, then dead.
             list = list.sortedBy { when (health[it.id]) { true -> 0; null -> 1; false -> 2 } }
+        }
+        if (section == Section.QURAN) {
+            // Al-Haram (Makkah) and Al-Masjid An-Nabawi (Madinah) always lead.
+            list = list.sortedBy { ch -> Catalog.QURAN_PINNED.indexOf(ch.tvgId).let { if (it < 0) Int.MAX_VALUE else it } }
         }
         return list
     }
@@ -495,7 +504,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
             val s = settings.value
-            if (s.kidsMode && !_kidsUnlocked.value && Category.KIDS !in ch.categories) return@launch
+            if (s.kidsMode && !_kidsUnlocked.value && !ch.allowedForKids()) return@launch
             val list = all.filter { it.playlist == null }
             if (_screen.value == Screen.PLAYER) {
                 prefs.addRecent(ch.id)
@@ -544,7 +553,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---- Library -------------------------------------------------------------------------------
 
     fun openLibraryItem(item: LibraryItem) {
-        if (!Library.open(getApplication<Application>(), item.action, isTv)) _messages.tryEmit(UiMessage.NoApp)
+        val action = item.action
+        if (action is LibraryAction.LiveChannel) {
+            // A live channel from the catalog (e.g. Al-Haram): play it here.
+            val all = repo.channels.value
+            val ch = all.firstOrNull { it.tvgId.equals(action.tvgId, ignoreCase = true) }
+            if (ch == null) {
+                _messages.tryEmit(UiMessage.NoChannelNumber)
+                return
+            }
+            open(ch, listFor(Section.QURAN, catalog.value, settings.value, _health.value).ifEmpty { listOf(ch) })
+            return
+        }
+        if (!Library.open(getApplication<Application>(), action, isTv)) _messages.tryEmit(UiMessage.NoApp)
     }
 
     fun loadLocalVideos() {
@@ -653,7 +674,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             when (cmd.action) {
                 Action.PLAY -> {
                     val ch = cmd.channel ?: return@launch
-                    if (settings.value.kidsMode && !_kidsUnlocked.value && Category.KIDS !in ch.categories) return@launch
+                    if (settings.value.kidsMode && !_kidsUnlocked.value && !ch.allowedForKids()) return@launch
                     // Prefer our own copy of the channel (it has every source); zap within its category.
                     val local = repo.channels.value.firstOrNull { it.id == ch.id } ?: ch
                     val list = repo.channels.value.filter { c ->

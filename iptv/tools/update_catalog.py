@@ -23,6 +23,8 @@ FREETV_EXCLUDE = re.compile(r"(?i)persia|english|zagros|turkmen|kurd")
 # Arabic names the database lacks.
 NAME_OVERRIDES = {
     "NationalGeographicAbuDhabi.ae": "ناشيونال جيوغرافيك أبوظبي",
+    "AlQuranAlKareemTV.sa": "قناة القرآن الكريم – الحرم المكي",
+    "AlSunnahAlNabawiyahTV.sa": "قناة السنة النبوية – المسجد النبوي",
     "MBC3.ae": "إم بي سي 3",
     "MBC1.ae": "إم بي سي 1",
     "AbuDhabiTV.ae": "قناة أبوظبي",

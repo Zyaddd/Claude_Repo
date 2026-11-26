@@ -15,6 +15,8 @@ sealed class LibraryAction {
     data class Youtube(val query: String, val url: String?) : LibraryAction()
     /** Open an official app, or its store page when it is not installed. */
     data class App(val pkg: String?, val name: String) : LibraryAction()
+    /** Play a live channel from the catalog, found by its tvg-id. */
+    data class LiveChannel(val tvgId: String) : LibraryAction()
 }
 
 data class LibraryItem(
@@ -58,6 +60,7 @@ object Library {
         val action = when (a.getString("type")) {
             "youtube" -> LibraryAction.Youtube(a.getString("query"), a.optString("url").ifBlank { null })
             "app" -> LibraryAction.App(a.optString("package").ifBlank { null }, a.getString("name"))
+            "channel" -> LibraryAction.LiveChannel(a.getString("tvgId"))
             else -> return null
         }
         val colors = o.optJSONArray("colors")?.let { arr ->
@@ -81,6 +84,7 @@ object Library {
     fun open(context: Context, action: LibraryAction, isTv: Boolean): Boolean = when (action) {
         is LibraryAction.Youtube -> openYoutube(context, action, isTv)
         is LibraryAction.App -> openApp(context, action, isTv)
+        is LibraryAction.LiveChannel -> false // played by the app itself (AppViewModel.openLibraryItem)
     }
 
     private fun start(context: Context, intent: Intent): Boolean = try {

@@ -105,6 +105,7 @@ fun sectionLabel(s: Section): String = stringResource(
         Section.NEWS -> R.string.tab_news
         Section.DOCUMENTARY -> R.string.tab_documentary
         Section.KIDS -> R.string.tab_kids
+        Section.QURAN -> R.string.tab_quran
         Section.LIBRARY -> R.string.nav_library
         Section.MY_LIST -> R.string.nav_my_list
         Section.ALL -> R.string.tab_all
@@ -143,10 +144,15 @@ fun HomeScreen(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit, onRequestPin
 
     val locked = settings.kidsMode && !kidsUnlocked
     val sections = if (locked) {
-        listOf(Section.KIDS, Section.LIBRARY)
+        listOf(Section.KIDS, Section.QURAN, Section.LIBRARY)
     } else {
         buildList {
-            addAll(listOf(Section.HOME, Section.NEWS, Section.DOCUMENTARY, Section.KIDS, Section.LIBRARY, Section.MY_LIST, Section.ALL))
+            addAll(
+                listOf(
+                    Section.HOME, Section.NEWS, Section.DOCUMENTARY, Section.KIDS, Section.QURAN,
+                    Section.LIBRARY, Section.MY_LIST, Section.ALL,
+                ),
+            )
             if (settings.playlists.isNotEmpty()) add(Section.PLAYLISTS)
         }
     }
@@ -349,11 +355,12 @@ private fun HomeFeed(vm: AppViewModel, tile: TileActions) {
     val news = vm.listFor(Section.NEWS, all, s, tile.health)
     val docs = vm.listFor(Section.DOCUMENTARY, all, s, tile.health)
     val kids = vm.listFor(Section.KIDS, all, s, tile.health)
+    val quran = vm.listFor(Section.QURAN, all, s, tile.health)
     val others = vm.listFor(Section.ALL, all, s, tile.health).filter { Category.OTHER in it.categories }
     val recents = vm.recents(all, s)
     val favorites = vm.listFor(Section.MY_LIST, all, s, tile.health)
     val featured = remember(all.size, s.favorites, s.recents) {
-        (recents.take(3) + favorites.take(3) + news.take(4) + docs.take(2) + kids.take(2)).distinctBy { it.id }
+        (recents.take(3) + favorites.take(3) + news.take(4) + quran.take(1) + docs.take(2) + kids.take(2)).distinctBy { it.id }
     }
     var heroId by rememberSaveable { mutableStateOf<String?>(null) }
     var userMoved by remember { mutableStateOf(false) }
@@ -387,6 +394,7 @@ private fun HomeFeed(vm: AppViewModel, tile: TileActions) {
         row("news", { stringResource(R.string.tab_news) }, news)
         row("docs", { stringResource(R.string.tab_documentary) }, docs)
         row("kids", { stringResource(R.string.tab_kids) }, kids)
+        row("quran", { stringResource(R.string.tab_quran) }, quran)
         val lib = vm.librarySections.firstOrNull()
         if (lib != null && !s.kidsMode) {
             item(key = "library") {
@@ -429,6 +437,7 @@ private fun Hero(vm: AppViewModel, ch: Channel, tile: TileActions) {
         Category.NEWS in ch.categories -> stringResource(R.string.tab_news)
         Category.DOCUMENTARY in ch.categories -> stringResource(R.string.tab_documentary)
         Category.KIDS in ch.categories -> stringResource(R.string.tab_kids)
+        Category.QURAN in ch.categories -> stringResource(R.string.tab_quran)
         else -> stringResource(R.string.live_tv)
     }
     Box(Modifier.fillMaxWidth().height(height)) {

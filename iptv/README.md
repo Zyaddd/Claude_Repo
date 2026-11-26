@@ -22,6 +22,9 @@ Al Jazeera Documentary, MBC 3, Spacetoon and Cartoon Network Arabic.
 - **Auto-repair:** when every link of a channel fails, the app downloads the lists again and switches
   to new links by itself. The lists are also refreshed every 6 hours while the app is open, and the
   link that worked last is tried first.
+- **Quran** section: 15 channels, led by Al-Haram live from Makkah (Al Quran Al Kareem TV) and
+  Al-Masjid An-Nabawi live from Madinah (Al Sunnah Al Nabawiyah TV), on the Saudi Broadcasting
+  Authority's own servers with a Globecast backup (`src/main/assets/pinned.m3u`). Allowed in kids mode.
 - **What's on now / next** comes from free XMLTV guides (epgshare01: Saudi, Egyptian, Al Jazeera),
   where a channel has one.
 

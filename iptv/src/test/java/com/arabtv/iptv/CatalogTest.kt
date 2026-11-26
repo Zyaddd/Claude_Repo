@@ -128,4 +128,28 @@ class CatalogTest {
         assertEquals(Catalog.normalizedName("France 24 Arabic"), Catalog.normalizedName("France 24 العربية Ⓨ"))
         assertTrue(Catalog.normalizedName("Al Jazeera Mubasher") != Catalog.normalizedName("Al Jazeera"))
     }
+
+    @Test
+    fun quranChannelsUseOfficialLinksAndSkipTheMislabelledOne() {
+        val repoSources = com.arabtv.iptv.data.ChannelRepository.SOURCES
+        val lists = repoSources.map { src ->
+            Catalog.build(M3uParser.parse(asset(src.asset)).filter(src.keep), emptyMap())
+        }
+        val merged = Catalog.merge(lists)
+        val haram = merged.filter { it.tvgId == "AlQuranAlKareemTV.sa" }
+        assertEquals(1, haram.size)
+        assertEquals("id:AlQuranAlKareemTV.sa@SD", haram[0].id) // same id as before, favorites keep working
+        assertTrue(haram[0].sources.first().url.contains("m.live.net.sa"))
+        assertFalse(haram[0].sources.any { it.url.contains("al-ekhbaria") })
+        assertTrue(Category.QURAN in haram[0].categories)
+
+        val nabawi = merged.single { it.tvgId == "AlSunnahAlNabawiyahTV.sa" }
+        assertTrue(nabawi.sources.size >= 3)
+        assertTrue(Category.QURAN in nabawi.categories)
+
+        val quran = merged.filter { Category.QURAN in it.categories }
+        println("quran=${quran.size}: " + quran.joinToString { it.name })
+        // Christian channels share the "Religious" group but are not Quran channels.
+        assertFalse(quran.any { it.name.contains("Aghapy") || it.name.contains("Coptic") || it.name.contains("Noursat", true) })
+    }
 }

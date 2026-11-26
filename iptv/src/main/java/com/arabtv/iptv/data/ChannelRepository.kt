@@ -134,6 +134,8 @@ class ChannelRepository(private val context: Context) {
             e.group in FREETV_GROUPS && !FREETV_EXCLUDE.containsMatchIn(e.title + " " + (e.attrs["tvg-id"] ?: ""))
 
         val SOURCES = listOf(
+            // Hand-checked official links, listed first so they are tried first.
+            CatalogSource(key = "pinned", urls = emptyList(), asset = "pinned.m3u", minEntries = 0),
             CatalogSource(
                 key = "ara",
                 urls = listOf(

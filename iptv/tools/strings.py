@@ -83,6 +83,7 @@ S = {
  "tab_news": ("News", "أخبار"),
  "tab_documentary": ("Documentary", "وثائقي"),
  "tab_kids": ("Cartoons", "كرتون وأطفال"),
+ "tab_quran": ("Quran", "قرآن كريم"),
  "tab_all": ("All channels", "كل القنوات"),
  "tab_favorites": ("Favorites", "المفضلة"),
  "tab_recent": ("Recent", "شوهد مؤخراً"),

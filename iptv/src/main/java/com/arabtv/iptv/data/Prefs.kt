@@ -39,7 +39,7 @@ data class Settings(
     /** Show the channel name for 2 seconds after switching. */
     val channelOsd: Boolean = true,
     val showGuide: Boolean = true,
-    val guideUrls: String = DEFAULT_GUIDE_URLS,
+    val guideUrls: String = Prefs.DEFAULT_GUIDE_URLS,
     val autoUpdate: Boolean = true,
 )
 

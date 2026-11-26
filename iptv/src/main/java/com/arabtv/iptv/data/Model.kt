@@ -3,7 +3,7 @@ package com.arabtv.iptv.data
 import org.json.JSONArray
 import org.json.JSONObject
 
-enum class Category { NEWS, DOCUMENTARY, KIDS, OTHER }
+enum class Category { NEWS, DOCUMENTARY, KIDS, QURAN, OTHER }
 
 /** One playable URL for a channel, with the HTTP headers some broadcasters insist on. */
 data class StreamSource(
