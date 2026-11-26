@@ -23,7 +23,9 @@ import com.arabtv.iptv.remote.LanDiscovery
 import com.arabtv.iptv.remote.Sender
 import com.arabtv.iptv.remote.TvTarget
 import com.arabtv.iptv.data.GuideRepository
+import com.arabtv.iptv.data.ProbeResult
 import com.arabtv.iptv.data.Programme
+import com.arabtv.iptv.data.StreamQuality
 import com.arabtv.iptv.data.StreamSource
 import com.arabtv.iptv.library.Library
 import com.arabtv.iptv.library.LibraryAction
@@ -159,8 +161,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _health = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val health: StateFlow<Map<String, Boolean>> = _health.asStateFlow()
 
-    /** channel id -> the link that answered last time; played first. */
-    private val workingUrl = java.util.concurrent.ConcurrentHashMap<String, String>()
+    /** link url -> what the last check found (alive, best resolution). */
+    private val probes = java.util.concurrent.ConcurrentHashMap<String, ProbeResult>()
+
+    /** channel id -> best resolution measured among its working links (for the quality badge). */
+    private val _quality = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val quality: StateFlow<Map<String, Int>> = _quality.asStateFlow()
 
     /** The TV this phone is currently controlling (null = play here). */
     private val _target = MutableStateFlow<TvTarget?>(null)
@@ -239,6 +245,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             cast.deviceName.value?.let { _messages.tryEmit(UiMessage.Casting(it)) }
         }
         playback.onAllSourcesFailed = { ch -> repair(ch); true }
+        playback.setQualityMode(settings.value.videoQuality)
+        playback.sourceOrder = { withBestSource(it) }
         if (settings.value.kidsMode) _section.value = Section.KIDS
     }
 
@@ -289,7 +297,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Probes every channel (8 at a time), records which answer and which link worked. */
+    /**
+     * Checks every channel (8 at a time): which links answer and the best resolution each offers,
+     * so the sharpest working link plays first.
+     */
     fun checkStreams() {
         healthJob?.cancel()
         _health.value = emptyMap()
@@ -299,14 +310,42 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val jobs = list.map { ch ->
                 launch {
                     gate.withPermit {
-                        val ok = ch.playableSources.take(3).firstOrNull { Http.probe(it) }
-                        if (ok != null) workingUrl[ch.id] = ok.url
-                        _health.update { it + (ch.id to (ok != null || ch.youtubeSource != null)) }
+                        var alive = false
+                        var best = 0
+                        for (src in ch.playableSources.take(MAX_PROBED_LINKS)) {
+                            val r = Http.probeQuality(src)
+                            probes[src.url] = r
+                            if (r.alive) {
+                                alive = true
+                                best = maxOf(best, r.height)
+                            }
+                        }
+                        _health.update { it + (ch.id to (alive || ch.youtubeSource != null)) }
+                        if (best > 0) _quality.update { it + (ch.id to best) }
                     }
                 }
             }
             jobs.forEach { it.join() }
         }
+    }
+
+    /** "1080p" for the best working link measured, else what the playlist claims. */
+    fun qualityLabel(ch: Channel, measured: Map<String, Int>): String? =
+        measured[ch.id]?.let { "${it}p" } ?: ch.bestQuality
+
+    /** The channel's links with what the last check found, in the order they would be tried. */
+    fun linksOf(ch: Channel): List<Pair<StreamSource, ProbeResult?>> =
+        withBestSource(ch).playableSources.map { it to probes[it.url] }
+
+    /** The user picked a link in the player's Source menu: play it now and remember it for next time. */
+    fun chooseSource(ch: Channel, url: String) {
+        prefs.edit { s -> s.copy(sourceChoice = s.sourceChoice + (ch.id to url)) }
+        playback.play(withBestSource(ch), playback.queue)
+    }
+
+    fun setVideoQuality(mode: String) {
+        prefs.edit { it.copy(videoQuality = mode) }
+        playback.setQualityMode(mode)
     }
 
     /** "Find new channels": downloads the lists again and shows what is new. */
@@ -405,12 +444,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Playback ------------------------------------------------------------------------------
 
-    /** The channel with the link that worked last time moved to the front. */
+    /**
+     * The channel's links in the order to try them: the one the user picked (if still listed),
+     * then working links by measured resolution, highest first; dead links last.
+     */
     private fun withBestSource(ch: Channel): Channel {
-        val url = workingUrl[ch.id] ?: return ch
-        val i = ch.sources.indexOfFirst { it.url == url }
-        if (i <= 0) return ch
-        return ch.copy(sources = listOf(ch.sources[i]) + ch.sources.filterIndexed { j, _ -> j != i })
+        var ordered = StreamQuality.rank(ch.sources, probes)
+        settings.value.sourceChoice[ch.id]?.let { url ->
+            val picked = ordered.firstOrNull { it.url == url }
+            if (picked != null) ordered = listOf(picked) + (ordered - picked)
+        }
+        return if (ordered == ch.sources) ch else ch.copy(sources = ordered)
     }
 
     /** Plays [ch] wherever playback currently goes: a connected Cast device, a chosen TV, or here. */
@@ -767,6 +811,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val REFRESH_EVERY = 6 * 60 * 60 * 1000L
+        private const val MAX_PROBED_LINKS = 5
     }
 
     override fun onCleared() {

@@ -139,6 +139,7 @@ fun HomeScreen(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit, onRequestPin
     val target by vm.target.collectAsState()
     val kidsUnlocked by vm.kidsUnlocked.collectAsState()
     val guide by vm.guide.collectAsState()
+    val quality by vm.quality.collectAsState()
     var menuFor by remember { mutableStateOf<Channel?>(null) }
     val now = rememberMinute()
 
@@ -165,6 +166,7 @@ fun HomeScreen(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit, onRequestPin
         health = health,
         guide = guide,
         now = now,
+        quality = quality,
         onMenu = { menuFor = it },
     )
 
@@ -230,6 +232,7 @@ class TileActions(
     val health: Map<String, Boolean>,
     val guide: Map<String, List<Programme>>,
     val now: Long,
+    val quality: Map<String, Int>,
     val onMenu: (Channel) -> Unit,
 ) {
     @Composable
@@ -239,6 +242,7 @@ class TileActions(
             title = vm.title(ch),
             number = vm.numberOf(ch, all),
             now = nowTitle(guide, ch, now),
+            quality = vm.qualityLabel(ch, quality),
             favorite = ch.id in settings.favorites,
             health = health[ch.id],
             onClick = { vm.open(ch, list) },

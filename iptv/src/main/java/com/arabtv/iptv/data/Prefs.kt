@@ -41,6 +41,10 @@ data class Settings(
     val showGuide: Boolean = true,
     val guideUrls: String = Prefs.DEFAULT_GUIDE_URLS,
     val autoUpdate: Boolean = true,
+    /** "best" (always the highest quality), "auto" (adapts to the connection) or "saver" (max 480p). */
+    val videoQuality: String = "best",
+    /** channel id -> the link the user picked in the player's Source menu. */
+    val sourceChoice: Map<String, String> = emptyMap(),
 )
 
 class Prefs(context: Context, isTv: Boolean) {
@@ -106,6 +110,11 @@ class Prefs(context: Context, isTv: Boolean) {
             showGuide = sp.getBoolean("showGuide", true),
             guideUrls = sp.getString("guideUrls", null)?.ifBlank { null } ?: DEFAULT_GUIDE_URLS,
             autoUpdate = sp.getBoolean("autoUpdate", true),
+            videoQuality = sp.getString("videoQuality", null)?.takeIf { it in setOf("best", "auto", "saver") } ?: "best",
+            sourceChoice = runCatching {
+                val o = JSONObject(sp.getString("sourceChoice", "{}") ?: "{}")
+                o.keys().asSequence().associateWith { o.getString(it) }
+            }.getOrDefault(emptyMap()),
         )
         save(s)
         return s
@@ -135,6 +144,8 @@ class Prefs(context: Context, isTv: Boolean) {
             .putBoolean("showGuide", s.showGuide)
             .putString("guideUrls", s.guideUrls)
             .putBoolean("autoUpdate", s.autoUpdate)
+            .putString("videoQuality", s.videoQuality)
+            .putString("sourceChoice", JSONObject(s.sourceChoice).toString())
             .also { e ->
                 val known = s.knownIds
                 if (known != null) e.putString("knownIds", JSONArray(known.toList()).toString()) else e.remove("knownIds")

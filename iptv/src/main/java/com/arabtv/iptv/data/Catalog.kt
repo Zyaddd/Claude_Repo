@@ -84,6 +84,9 @@ object Catalog {
         }
     }
 
+    /** The resolution a playlist claims for a link ("1080p"), or a middling guess when it says nothing. */
+    fun declaredHeight(s: StreamSource): Int = s.quality?.removeSuffix("p")?.toIntOrNull() ?: 480
+
     fun cleanTitle(title: String): String =
         title.replace(tagRegex, "").replace(parenRegex, "").replace(circledRegex, "")
             .replace(Regex("\\s+"), " ").trim()
@@ -107,16 +110,18 @@ object Catalog {
      * name) becomes one channel whose sources are the union, so backups from every list are kept.
      * Earlier lists win for id, name and artwork, so favorites stay attached to the same id.
      */
-    fun merge(lists: List<List<Channel>>): List<Channel> {
+    fun merge(lists: List<List<Channel>>, linksOnly: Set<Int> = emptySet()): List<Channel> {
         val out = ArrayList<Channel>()
         val byId = HashMap<String, Int>()
         val byName = HashMap<String, Int>()
-        for (list in lists) for (ch in list) {
+        for ((listIndex, list) in lists.withIndex()) for (ch in list) {
             val idKey = ch.tvgId?.lowercase()
             val nameKeys = listOfNotNull(normalizedName(ch.name), ch.nameAr?.let { normalizedName(it) })
                 .filter { it.length >= 2 }
             val index = idKey?.let { byId[it] } ?: nameKeys.firstNotNullOfOrNull { byName[it] }
             if (index == null) {
+                // Lists that only contribute links never add channels of their own.
+                if (listIndex in linksOnly) continue
                 out += ch
                 val i = out.size - 1
                 idKey?.let { byId.putIfAbsent(it, i) }
@@ -129,7 +134,10 @@ object Catalog {
                     logo = a.logo ?: ch.logo,
                     country = a.country ?: ch.country,
                     categories = cats,
-                    sources = (a.sources + ch.sources).distinctBy { it.url.trim() },
+                    sources = (a.sources + ch.sources).distinctBy { it.url.trim() }
+                        // Higher declared resolution first (stable: earlier lists win ties). The app
+                        // later re-orders by the resolution it actually measures.
+                        .sortedByDescending { declaredHeight(it) },
                     geoBlocked = a.geoBlocked && ch.geoBlocked,
                     notAlwaysOn = a.notAlwaysOn && ch.notAlwaysOn,
                 )

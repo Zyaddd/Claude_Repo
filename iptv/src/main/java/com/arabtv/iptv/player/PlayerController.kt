@@ -12,6 +12,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import androidx.media3.common.VideoSize
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -40,6 +42,8 @@ data class PlaybackState(
     val switching: Boolean = false,
     /** All links failed; looking for fresh ones in the online channel lists. */
     val repairing: Boolean = false,
+    /** Height of the video being shown (0 until the first frame). */
+    val videoHeight: Int = 0,
 )
 
 data class QualityOption(val label: String, val height: Int, val group: Int, val track: Int)
@@ -63,10 +67,25 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
         spec.withAdditionalHeaders(headers)
     }
 
+    // Assume a fast connection at the start, so playback opens on a sharp variant instead of
+    // starting blurry and stepping up over the first seconds.
+    private val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
+        .setInitialBitrateEstimate(12_000_000L)
+        .build()
+
     val player: ExoPlayer = ExoPlayer.Builder(context)
         .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactory))
+        .setBandwidthMeter(bandwidthMeter)
         .build()
         .apply { playWhenReady = true }
+
+    /** "best": always the top variant; "auto": adapt to the connection; "saver": at most 480p. */
+    fun setQualityMode(mode: String) {
+        val b = player.trackSelectionParameters.buildUpon()
+            .setForceHighestSupportedBitrate(mode == "best")
+        if (mode == "saver") b.setMaxVideoSize(854, 480) else b.clearVideoSizeConstraints()
+        player.trackSelectionParameters = b.build()
+    }
 
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
@@ -88,6 +107,9 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
      */
     var onAllSourcesFailed: ((Channel) -> Boolean)? = null
 
+    /** Puts a channel's links in the order to try them (best measured quality first). */
+    var sourceOrder: ((Channel) -> Channel)? = null
+
     init {
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -96,6 +118,10 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) = update()
+
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                _state.value = _state.value.copy(videoHeight = videoSize.height)
+            }
 
             override fun onPlayerError(error: PlaybackException) {
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
@@ -119,7 +145,7 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
 
     fun play(channel: Channel, list: List<Channel>) {
         repairTried = false
-        start(channel, list)
+        start(sourceOrder?.invoke(channel) ?: channel, list)
     }
 
     private fun start(channel: Channel, list: List<Channel>) {

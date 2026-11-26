@@ -17,6 +17,10 @@ data class CatalogSource(
     val asset: String,
     val minEntries: Int,
     val keep: (M3uEntry) -> Boolean = { true },
+    /** All [urls] together make up the list (instead of being alternatives). */
+    val concat: Boolean = false,
+    /** Only adds links to channels other lists have; never adds channels. */
+    val linksOnly: Boolean = false,
 )
 
 /**
@@ -66,7 +70,23 @@ class ChannelRepository(private val context: Context) {
         val failures = mutableMapOf<String, String>()
         val builtIn = SOURCES.map { s ->
             var text: String? = null
-            for (url in s.urls) {
+            if (s.concat) {
+                val parts = s.urls.mapNotNull { url ->
+                    try {
+                        Http.getText(url)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                val joined = "#EXTM3U\n" + parts.joinToString("\n") { it.replace("#EXTM3U", "") }
+                if (looksValid(joined, s.minEntries)) {
+                    text = joined
+                    runCatching { cacheFile(s).writeText(joined) }
+                } else {
+                    failures[s.key] = "Only ${parts.size} of ${s.urls.size} files"
+                }
+            }
+            for (url in if (s.concat) emptyList() else s.urls) {
                 try {
                     val t = Http.getText(url)
                     if (looksValid(t, s.minEntries)) {
@@ -107,7 +127,8 @@ class ChannelRepository(private val context: Context) {
         val lists = builtIn.map { (s, text) ->
             Catalog.build(M3uParser.parse(text).filter(s.keep), arabicNames)
         }
-        val list = Catalog.merge(lists).toMutableList()
+        val linksOnly = builtIn.indices.filter { builtIn[it].first.linksOnly }.toSet()
+        val list = Catalog.merge(lists, linksOnly).toMutableList()
         for ((p, text) in user) list += Catalog.build(M3uParser.parse(text), arabicNames, playlist = p.name)
         // Two playlists with the same name could repeat ids; lists need unique keys.
         _channels.value = list.distinctBy { it.id }
@@ -130,6 +151,11 @@ class ChannelRepository(private val context: Context) {
         )
         private val FREETV_EXCLUDE = Regex("(?i)persia|english|zagros|turkmen|kurd")
 
+        /** Must match ARAB_COUNTRIES in iptv/tools/update_catalog.py. */
+        val ARAB_COUNTRIES = listOf(
+            "sa", "ae", "eg", "qa", "kw", "bh", "om", "ye", "iq", "sy", "lb", "jo", "ps", "sd", "ly", "tn", "dz", "ma", "mr",
+        )
+
         fun keepFreeTv(e: M3uEntry): Boolean =
             e.group in FREETV_GROUPS && !FREETV_EXCLUDE.containsMatchIn(e.title + " " + (e.attrs["tvg-id"] ?: ""))
 
@@ -151,6 +177,15 @@ class ChannelRepository(private val context: Context) {
                 asset = "freetv_arab.m3u",
                 minEntries = 50,
                 keep = ::keepFreeTv,
+            ),
+            // Last, so its extra links can join channels from every list above.
+            CatalogSource(
+                key = "iptvorg_streams",
+                urls = ARAB_COUNTRIES.map { "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/$it.m3u" },
+                asset = "iptvorg_streams.m3u",
+                minEntries = 200,
+                concat = true,
+                linksOnly = true,
             ),
         )
     }

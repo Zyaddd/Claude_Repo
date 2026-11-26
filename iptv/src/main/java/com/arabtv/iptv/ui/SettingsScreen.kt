@@ -152,6 +152,18 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
             // ---- Playback ----
             item { Header(stringResource(R.string.sec_playback)) }
             item {
+                ActionRow(
+                    stringResource(R.string.video_quality),
+                    stringResource(
+                        when (s.videoQuality) {
+                            "auto" -> R.string.vq_auto
+                            "saver" -> R.string.vq_saver
+                            else -> R.string.vq_best
+                        },
+                    ),
+                ) { dialog = "quality" }
+            }
+            item {
                 SwitchRow(stringResource(R.string.autoplay_last), stringResource(R.string.autoplay_last_help), s.autoplayLast) { on ->
                     vm.updateSettings { it.copy(autoplayLast = on) }
                 }
@@ -293,6 +305,24 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
                 vm.loadGuide(force = true)
                 dialog = null
             },
+        )
+        "quality" -> androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dialog = null },
+            title = { Text(stringResource(R.string.video_quality)) },
+            text = {
+                Column {
+                    listOf(
+                        Triple("best", R.string.vq_best, R.string.vq_best_help),
+                        Triple("auto", R.string.vq_auto, R.string.vq_auto_help),
+                        Triple("saver", R.string.vq_saver, R.string.vq_saver_help),
+                    ).forEach { (mode, label, help) ->
+                        MenuItem(
+                            (if (s.videoQuality == mode) "✓ " else "") + stringResource(label) + " — " + stringResource(help),
+                        ) { vm.setVideoQuality(mode); dialog = null }
+                    }
+                }
+            },
+            confirmButton = {},
         )
         "language" -> androidx.compose.material3.AlertDialog(
             onDismissRequest = { dialog = null },

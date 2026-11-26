@@ -106,6 +106,7 @@ fun ChannelTile(
     title: String,
     number: Int,
     now: String?,
+    quality: String?,
     favorite: Boolean,
     health: Boolean?,
     onClick: () -> Unit,
@@ -167,7 +168,7 @@ fun ChannelTile(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            now ?: listOfNotNull(flagEmoji(channel.country).ifEmpty { null }, channel.bestQuality).joinToString("  "),
+            now ?: listOfNotNull(flagEmoji(channel.country).ifEmpty { null }, quality).joinToString("  "),
             style = MaterialTheme.typography.bodySmall,
             color = TextSecondary,
             maxLines = 1,

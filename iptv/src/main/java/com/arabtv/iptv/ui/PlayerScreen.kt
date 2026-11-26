@@ -243,8 +243,10 @@ private fun PlayerOverlays(
                         overflow = TextOverflow.Ellipsis,
                     )
                     val num = vm.numberOf(channel)
+                    val height = vm.playback.state.collectAsState().value.videoHeight
                     val sub = listOfNotNull(
                         num.takeIf { it > 0 }?.toString(),
+                        height.takeIf { it > 0 }?.let { "${it}p" },
                         nowP?.let { stringResource(R.string.now_playing, it.title) },
                         nextP?.let { stringResource(R.string.next_up, it.title) },
                     ).joinToString("  ·  ")
@@ -425,6 +427,42 @@ private fun PlayerOptionsDialog(
                         }
                         FocusAnchor(firstFocus)
                     }
+                    "source" -> {
+                        val links = remember(channel.id) { vm.linksOf(channel) }
+                        val playing = vm.playback.state.value.let { st -> st.channel?.sources?.getOrNull(st.sourceIndex)?.url }
+                        Text(
+                            stringResource(R.string.source_help),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
+                            items(links.size) { i ->
+                                val (src, probe) = links[i]
+                                val res = probe?.height?.takeIf { it > 0 }?.let { "${it}p" } ?: src.quality
+                                val state = when (probe?.alive) {
+                                    true -> stringResource(R.string.source_ok)
+                                    false -> stringResource(R.string.source_dead)
+                                    null -> stringResource(R.string.source_unchecked)
+                                }
+                                val host = runCatching { java.net.URI(src.url).host }.getOrNull().orEmpty()
+                                val label = listOfNotNull(
+                                    stringResource(R.string.source_n, i + 1),
+                                    res,
+                                    state,
+                                ).joinToString("  ·  ") + (if (src.url == playing) "  ✓" else "")
+                                Column(Modifier.fillMaxWidth()) {
+                                    MenuItem(label) { vm.chooseSource(channel, src.url); onDismiss() }
+                                    Text(
+                                        host,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(start = 16.dp, bottom = 4.dp),
+                                    )
+                                }
+                            }
+                        }
+                        FocusAnchor(firstFocus)
+                    }
                     "sleep" -> {
                         MenuItem(stringResource(R.string.sleep_off)) { vm.setSleepTimer(null); onDismiss() }
                         listOf(15, 30, 60, 90, 120).forEach { m ->
@@ -444,6 +482,11 @@ private fun PlayerOptionsDialog(
                             ) { vm.toggleFavorite(channel.id) }
                             OptionButton(R.drawable.ic_quality, stringResource(R.string.quality), Modifier.weight(1f)) {
                                 page = "quality"
+                            }
+                            if (channel.playableSources.size > 1) {
+                                OptionButton(Icons.Filled.Refresh, stringResource(R.string.source), Modifier.weight(1f)) {
+                                    page = "source"
+                                }
                             }
                             OptionButton(
                                 R.drawable.ic_aspect,

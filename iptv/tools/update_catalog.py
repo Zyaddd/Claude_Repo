@@ -12,6 +12,10 @@ import csv, io, json, os, re, sys, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(HERE, "..", "src", "main", "assets")
 PLAYLIST = "https://raw.githubusercontent.com/iptv-org/iptv/gh-pages/languages/ara.m3u"
+# iptv-org's per-country stream files list every known link for a channel (the language list keeps
+# one), so they add backup and higher-quality links. Must match ChannelRepository.ARAB_COUNTRIES.
+ARAB_COUNTRIES = ["sa", "ae", "eg", "qa", "kw", "bh", "om", "ye", "iq", "sy", "lb", "jo", "ps", "sd", "ly", "tn", "dz", "ma", "mr"]
+STREAMS = "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/{}.m3u"
 FREETV = "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"
 # Must match ChannelRepository.FREETV_GROUPS / FREETV_EXCLUDE in the app.
 FREETV_GROUPS = {
@@ -58,6 +62,17 @@ def main():
     os.makedirs(ASSETS, exist_ok=True)
     with open(os.path.join(ASSETS, "ara.m3u"), "w", encoding="utf-8") as f:
         f.write(m3u)
+    parts = ["#EXTM3U"]
+    for cc in ARAB_COUNTRIES:
+        try:
+            parts += [l for l in get(STREAMS.format(cc)).splitlines() if l and not l.startswith("#EXTM3U")]
+        except Exception as e:  # a missing country file is fine
+            print("skip", cc, e)
+    streams = "\n".join(parts) + "\n"
+    if streams.count("#EXTINF") < 200:
+        sys.exit("stream files look wrong; not overwriting")
+    with open(os.path.join(ASSETS, "iptvorg_streams.m3u"), "w", encoding="utf-8") as f:
+        f.write(streams)
     with open(os.path.join(ASSETS, "freetv_arab.m3u"), "w", encoding="utf-8") as f:
         f.write(freetv)
     with open(os.path.join(ASSETS, "arabic_names.json"), "w", encoding="utf-8") as f:

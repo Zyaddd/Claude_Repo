@@ -25,6 +25,11 @@ Al Jazeera Documentary, MBC 3, Spacetoon and Cartoon Network Arabic.
 - **Quran** section: 15 channels, led by Al-Haram live from Makkah (Al Quran Al Kareem TV) and
   Al-Masjid An-Nabawi live from Madinah (Al Sunnah Al Nabawiyah TV), on the Saudi Broadcasting
   Authority's own servers with a Globecast backup (`src/main/assets/pinned.m3u`). Allowed in kids mode.
+- **Best picture first:** iptv-org's per-country stream files for the 19 Arab countries add about
+  100 extra links (they only add links, never channels). When the app checks the channels it reads
+  each link's playlist, measures the best resolution on offer, and plays the sharpest working link
+  first. Player → Options → Source lists every link with its resolution; a choice is remembered.
+  Settings → Video quality: Best (default, always the top variant), Automatic, or Data saver (480p).
 - **What's on now / next** comes from free XMLTV guides (epgshare01: Saudi, Egyptian, Al Jazeera),
   where a channel has one.
 
