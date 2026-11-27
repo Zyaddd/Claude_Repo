@@ -93,10 +93,12 @@ import com.arabtv.iptv.data.Channel
 import com.arabtv.iptv.data.GuideRepository
 import com.arabtv.iptv.data.Programme
 import com.arabtv.iptv.data.Settings
-import com.arabtv.iptv.library.LibraryItem
 import com.arabtv.iptv.library.LocalVideo
 import com.arabtv.iptv.remote.Action
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.graphics.asImageBitmap
 
 @Composable
 fun sectionLabel(s: Section): String = stringResource(
@@ -107,7 +109,7 @@ fun sectionLabel(s: Section): String = stringResource(
         Section.KIDS -> R.string.tab_kids
         Section.QURAN -> R.string.tab_quran
         Section.GUIDE -> R.string.nav_guide
-        Section.LIBRARY -> R.string.nav_library
+        Section.STREAM -> R.string.nav_stream
         Section.MY_LIST -> R.string.nav_my_list
         Section.ALL -> R.string.tab_all
         Section.PLAYLISTS -> R.string.tab_playlists
@@ -146,15 +148,17 @@ fun HomeScreen(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit, onRequestPin
 
     val locked = settings.kidsLocked && !kidsUnlocked
     val sections = if (locked) {
-        listOf(Section.KIDS, Section.QURAN, Section.LIBRARY)
+        listOf(Section.KIDS, Section.QURAN)
     } else {
         buildList {
             addAll(
                 listOf(
                     Section.HOME, Section.NEWS, Section.DOCUMENTARY, Section.KIDS, Section.QURAN,
-                    Section.GUIDE, Section.LIBRARY, Section.MY_LIST, Section.ALL,
+                    Section.GUIDE, Section.MY_LIST, Section.ALL,
                 ),
             )
+            // Custom Stream sends phone videos to a TV, so it lives on the phone only.
+            if (!vm.isTv) add(Section.STREAM)
             if (settings.playlists.isNotEmpty()) add(Section.PLAYLISTS)
         }
     }
@@ -179,7 +183,7 @@ fun HomeScreen(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit, onRequestPin
             when {
                 all.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = Gold)
                 current == Section.HOME -> HomeFeed(vm, tile)
-                current == Section.LIBRARY -> LibraryPage(vm)
+                current == Section.STREAM -> StreamPage(vm, onOpenTvSheet)
                 current == Section.GUIDE -> GuideGrid(vm, tile)
                 current == Section.SEARCH -> SearchPage(vm, tile)
                 else -> ChannelGrid(
@@ -408,12 +412,6 @@ private fun HomeFeed(vm: AppViewModel, tile: TileActions) {
         row("docs", { stringResource(R.string.tab_documentary) }, docs)
         row("kids", { stringResource(R.string.tab_kids) }, kids)
         if (!ramadan) row("quran", { stringResource(R.string.tab_quran) }, quran)
-        val lib = vm.librarySections.firstOrNull()
-        if (lib != null && !s.kidsLocked) {
-            item(key = "library") {
-                LibraryRow(lib.title(vm.isArabicUi()), lib.items, vm) { vm.openLibraryItem(it) }
-            }
-        }
         row("more", { stringResource(R.string.row_more) }, others)
     }
 }
@@ -641,108 +639,125 @@ private fun SearchPage(vm: AppViewModel, tile: TileActions) {
     }
 }
 
-// ---- Library -----------------------------------------------------------------------------------
+// ---- Custom Stream: phone videos on the TV ---------------------------------------------------------
 
 @Composable
-private fun LibraryPage(vm: AppViewModel) {
+private fun StreamPage(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit) {
     val context = LocalContext.current
     val videos by vm.localVideos.collectAsState()
+    val target by vm.target.collectAsState()
+    val castDevice by vm.cast.deviceName.collectAsState()
+    val now by vm.nowStreaming.collectAsState()
     val perm = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_VIDEO else Manifest.permission.READ_EXTERNAL_STORAGE
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) vm.loadLocalVideos()
+    }
+    // Any video file (Downloads, Drive, file managers) through the system picker.
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            val name = runCatching {
+                context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) c.getString(0) else null
+                }
+            }.getOrNull() ?: "Video"
+            vm.streamUri(uri, name)
+        }
     }
     LaunchedEffect(Unit) {
         if (ContextCompat.checkSelfPermission(context, perm) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
             vm.loadLocalVideos()
         }
     }
-    val arabic = vm.isArabicUi()
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
-        item(key = "intro") {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                Text(stringResource(R.string.nav_library), style = MaterialTheme.typography.headlineMedium)
-                Text(stringResource(R.string.library_intro), color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-        items(vm.librarySections, key = { it.id }) { section ->
-            LibraryRow(section.title(arabic), section.items, vm) { vm.openLibraryItem(it) }
-        }
-        item(key = "mine") {
-            Column(Modifier.padding(top = 18.dp)) {
-                Text(
-                    stringResource(R.string.my_videos),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-                )
-                val list = videos
-                when {
-                    list == null -> OutlinedButton(
-                        onClick = { launcher.launch(perm) },
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                    ) { Text(stringResource(R.string.my_videos_allow)) }
-                    list.isEmpty() -> Text(
-                        stringResource(R.string.my_videos_empty),
-                        color = TextSecondary,
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                    )
-                    else -> LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        items(list, key = { it.id }) { v -> VideoTile(v, if (vm.isTv) 230.dp else 170.dp) { vm.playLocal(v, list) } }
+    val list = videos
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(160.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }, key = "header") {
+            Column(Modifier.padding(top = 8.dp)) {
+                Text(stringResource(R.string.nav_stream), style = MaterialTheme.typography.headlineMedium)
+                Text(stringResource(R.string.stream_intro), color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(12.dp))
+                // Where the videos go.
+                Surface(
+                    onClick = { onOpenTvSheet(null) },
+                    color = Surface1,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.ic_tv), null, tint = Gold)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            when {
+                                castDevice != null -> stringResource(R.string.casting_to, castDevice!!)
+                                target != null -> stringResource(R.string.stream_to, target!!.label)
+                                else -> stringResource(R.string.stream_choose_tv)
+                            },
+                            modifier = Modifier.weight(1f),
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(stringResource(R.string.change), color = Gold)
                     }
+                }
+                now?.let { title ->
+                    Spacer(Modifier.height(10.dp))
+                    Surface(color = Brand.copy(alpha = 0.3f), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.PlayArrow, null, tint = Gold)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.stream_now), style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                                Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
+                            }
+                            TextButton(onClick = { vm.stopStreaming() }) { Text(stringResource(R.string.stop)) }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = { runCatching { picker.launch("video/*") } }) {
+                    Icon(Icons.Filled.Add, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.stream_pick_file))
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LibraryRow(title: String, items: List<LibraryItem>, vm: AppViewModel, onOpen: (LibraryItem) -> Unit) {
-    val arabic = vm.isArabicUi()
-    Column(Modifier.padding(top = 18.dp)) {
-        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            items(items, key = { it.id }) { item ->
-                PosterTile(
-                    title = item.title(arabic),
-                    subtitle = item.by(arabic),
-                    colors = item.colors.map { Color(it) },
-                    width = if (vm.isTv) 190.dp else 140.dp,
-                ) { onOpen(item) }
+        when {
+            list == null -> item(span = { GridItemSpan(maxLineSpan) }, key = "allow") {
+                Button(onClick = { launcher.launch(perm) }) { Text(stringResource(R.string.my_videos_allow)) }
             }
+            list.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }, key = "none") {
+                Text(stringResource(R.string.my_videos_empty), color = TextSecondary)
+            }
+            else -> items(list, key = { it.id }) { v -> VideoTile(v) { vm.streamVideo(v) } }
         }
     }
 }
 
-/** A tall poster card with a colour gradient and the title set large (no artwork is copied). */
+/** A phone video with its thumbnail, title and length. */
 @Composable
-private fun PosterTile(title: String, subtitle: String, colors: List<Color>, width: Dp, onClick: () -> Unit) {
-    val source = remember { MutableInteractionSource() }
-    val focused by source.collectIsFocusedAsState()
-    Box(
-        Modifier.width(width).aspectRatio(2f / 3f).focusScale(source)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Brush.verticalGradient(colors.ifEmpty { listOf(Surface3, Surface1) }))
-            .then(if (focused) Modifier.border(3.dp, Color.White, RoundedCornerShape(14.dp)) else Modifier)
-            .clickable(interactionSource = source, indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick),
-    ) {
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color(0xAA000000))))
-        Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 3)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color(0xDDFFFFFF), maxLines = 2)
+private fun VideoTile(v: LocalVideo, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val thumb by produceState<android.graphics.Bitmap?>(null, v.id) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    context.contentResolver.loadThumbnail(v.uri, android.util.Size(320, 180), null)
+                } else {
+                    @Suppress("DEPRECATION")
+                    android.provider.MediaStore.Video.Thumbnails.getThumbnail(
+                        context.contentResolver, v.id, android.provider.MediaStore.Video.Thumbnails.MINI_KIND, null,
+                    )
+                }
+            }.getOrNull()
         }
     }
-}
-
-@Composable
-private fun VideoTile(v: LocalVideo, width: Dp, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
-    Column(Modifier.width(width).focusScale(source)) {
+    Column(Modifier.focusScale(source)) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp))
                 .background(Brush.linearGradient(listOf(Surface3, Surface1)))
@@ -750,13 +765,24 @@ private fun VideoTile(v: LocalVideo, width: Dp, onClick: () -> Unit) {
                 .clickable(interactionSource = source, indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(40.dp), tint = Color.White)
+            thumb?.let {
+                androidx.compose.foundation.Image(
+                    it.asImageBitmap(), null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(36.dp), tint = Color.White)
         }
         Spacer(Modifier.height(6.dp))
         Text(v.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (v.durationMs > 0) {
-            val m = v.durationMs / 60_000
-            Text("${m / 60}:${"%02d".format(m % 60)}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            val sec = v.durationMs / 1000
+            Text(
+                if (sec >= 3600) "%d:%02d:%02d".format(sec / 3600, sec / 60 % 60, sec % 60) else "%d:%02d".format(sec / 60, sec % 60),
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+            )
         }
     }
 }

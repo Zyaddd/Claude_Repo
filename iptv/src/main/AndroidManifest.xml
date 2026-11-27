@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <!-- In-app updates: install the newer APK from the app's own GitHub release. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- Library: the user's own videos (USB stick or device storage). -->
+    <!-- Custom Stream: the phone's videos, sent to the TV. -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
@@ -31,9 +31,6 @@
     <queries>
         <package android:name="com.google.android.youtube" />
         <package android:name="com.google.android.youtube.tv" />
-        <package android:name="com.google.android.apps.youtube.kids" />
-        <package android:name="com.disney.disneyplus" />
-        <package android:name="net.mbc.shahid" />
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>

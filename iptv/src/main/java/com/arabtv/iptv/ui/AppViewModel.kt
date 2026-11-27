@@ -31,9 +31,6 @@ import com.arabtv.iptv.library.Library
 import com.arabtv.iptv.prayer.City
 import com.arabtv.iptv.prayer.PrayerTime
 import com.arabtv.iptv.prayer.Prayers
-import com.arabtv.iptv.library.LibraryAction
-import com.arabtv.iptv.library.LibraryItem
-import com.arabtv.iptv.library.LibrarySection
 import com.arabtv.iptv.library.LocalVideo
 import com.arabtv.iptv.update.Release
 import com.arabtv.iptv.update.UpdateState
@@ -63,7 +60,7 @@ import kotlinx.coroutines.sync.withPermit
 enum class Screen { HOME, PLAYER, SETTINGS }
 
 /** The pages of the home screen's top navigation. */
-enum class Section { HOME, NEWS, DOCUMENTARY, KIDS, QURAN, GUIDE, LIBRARY, MY_LIST, ALL, PLAYLISTS, SEARCH }
+enum class Section { HOME, NEWS, DOCUMENTARY, KIDS, QURAN, GUIDE, STREAM, MY_LIST, ALL, PLAYLISTS, SEARCH }
 
 /** Why a command did not reach a TV, so the message can say what to check. */
 enum class SendError {
@@ -205,7 +202,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _finding = MutableStateFlow(false)
     val finding: StateFlow<Boolean> = _finding.asStateFlow()
 
-    val librarySections: List<LibrarySection> by lazy { Library.load(app) }
+    /** Custom Stream: the phone video now playing on the TV (null when none). */
+    private val _nowStreaming = MutableStateFlow<String?>(null)
+    val nowStreaming: StateFlow<String?> = _nowStreaming.asStateFlow()
     private val _localVideos = MutableStateFlow<List<LocalVideo>?>(null)
     val localVideos: StateFlow<List<LocalVideo>?> = _localVideos.asStateFlow()
 
@@ -470,7 +469,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Section.DOCUMENTARY -> all.filter { Category.DOCUMENTARY in it.categories && it.playlist == null }
             Section.KIDS -> all.filter { Category.KIDS in it.categories && (it.playlist == null || s.kidsLocked) }
             Section.QURAN -> all.filter { Category.QURAN in it.categories && it.playlist == null }
-            Section.ALL, Section.HOME, Section.LIBRARY, Section.GUIDE -> all.filter { it.playlist == null }
+            Section.ALL, Section.HOME, Section.STREAM, Section.GUIDE -> all.filter { it.playlist == null }
             Section.PLAYLISTS -> all.filter { it.playlist != null }
             Section.MY_LIST -> s.favorites.mapNotNull { id -> all.firstOrNull { it.id == id } }
             Section.SEARCH -> all
@@ -618,6 +617,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun stopStreaming() {
+        _nowStreaming.value = null
+        if (_target.value != null) remote(Action.STOP) else if (cast.deviceName.value != null) cast.stopCasting()
+        com.arabtv.iptv.remote.MediaShareService.stop(getApplication<Application>())
+    }
+
     fun closePlayer() {
         _showOptions.value = false
         _mini.value = false
@@ -663,23 +668,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _screen.value = Screen.PLAYER
     }
 
-    // ---- Library -------------------------------------------------------------------------------
-
-    fun openLibraryItem(item: LibraryItem) {
-        val action = item.action
-        if (action is LibraryAction.LiveChannel) {
-            // A live channel from the catalog (e.g. Al-Haram): play it here.
-            val all = repo.channels.value
-            val ch = all.firstOrNull { it.tvgId.equals(action.tvgId, ignoreCase = true) }
-            if (ch == null) {
-                _messages.tryEmit(UiMessage.NoChannelNumber)
-                return
-            }
-            open(ch, listFor(Section.QURAN, catalog.value, settings.value, _health.value).ifEmpty { listOf(ch) })
-            return
-        }
-        if (!Library.open(getApplication<Application>(), action, isTv)) _messages.tryEmit(UiMessage.NoApp)
-    }
+    // ---- Custom Stream (phone videos) -------------------------------------------------------------------------
 
     fun loadLocalVideos() {
         viewModelScope.launch {
@@ -687,168 +676,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun playLocal(video: LocalVideo, all: List<LocalVideo>) {
-        fun ch(v: LocalVideo) = Channel(
-            id = "local:${v.id}",
-            name = v.title,
-            categories = setOf(Category.OTHER),
-            sources = listOf(StreamSource(v.uri.toString())),
-        )
-        val tv = _target.value
-        when {
-            // Controlling a TV: the video goes to the TV, not the phone screen.
-            tv != null -> sendToTv(tv, ch(video))
-            cast.deviceName.value != null -> servedFromPhone(ch(video))?.let { cast.play(it, it.name) }
-            else -> {
-                playback.play(ch(video), all.map { ch(it) })
-                _screen.value = Screen.PLAYER
-            }
-        }
-    }
+    /**
+     * Custom Stream: plays a phone video on the TV. With a TV chosen it goes straight there (tap
+     * another video to replace it); with Chromecast connected it casts; otherwise it asks which TV.
+     */
+    fun streamVideo(video: LocalVideo) = streamUri(video.uri, video.title)
 
-    // ---- Prayer times, adhan, Ramadan -------------------------------------------------------------
-
-    val city: City get() = Prayers.city(settings.value.prayerCity)
-
-    fun ramadanActive(s: Settings = settings.value): Boolean = when (s.ramadanMode) {
-        "on" -> true
-        "off" -> false
-        else -> Prayers.isRamadan(Prayers.city(s.prayerCity))
-    }
-
-    private fun checkAdhan() {
-        val s = settings.value
-        if (s.adhanAlert == "off") return
-        val started = Prayers.justStarted(Prayers.city(s.prayerCity)) ?: return
-        if (lastAlerted == started.at) return
-        val haram = haramChannel() ?: return // channel list not loaded yet: try again next tick
-        lastAlerted = started.at
-        val watchingIt = _screen.value == Screen.PLAYER && playback.state.value.channel?.id == haram.id
-        if (watchingIt) return
-        if (s.adhanAlert == "auto") playHaram() else _prayerAlert.value = started
-    }
-
-    private fun haramChannel(): Channel? =
-        repo.channels.value.firstOrNull { it.tvgId.equals(Catalog.QURAN_PINNED[0], ignoreCase = true) }
-
-    /** Al-Haram live from Makkah. */
-    fun playHaram() {
-        _prayerAlert.value = null
-        val ch = haramChannel() ?: return
-        selectTarget(null)
-        open(ch, listFor(Section.QURAN, catalog.value, settings.value, _health.value).ifEmpty { listOf(ch) })
-    }
-
-    fun dismissPrayerAlert() { _prayerAlert.value = null }
-
-    fun setPrayerCity(id: String) = prefs.edit { it.copy(prayerCity = id) }
-
-    // ---- Profiles ----------------------------------------------------------------------------------
-
-    fun chooseProfile(id: String) {
-        if (id != settings.value.currentProfile) {
-            prefs.switchProfile(id)
-            _kidsUnlocked.value = false
-        }
-        _choosingProfile.value = false
-        _section.value = if (settings.value.kidsLocked) Section.KIDS else Section.HOME
-        _screen.value = Screen.HOME
-    }
-
-    fun showProfilePicker() { _choosingProfile.value = true }
-
-    fun addProfile(name: String, kids: Boolean) {
-        val n = name.trim().ifBlank { return }
-        prefs.edit { s ->
-            val p = com.arabtv.iptv.data.Profile("p${System.currentTimeMillis()}", n.take(24), kids, s.profiles.size % 6)
-            s.copy(profiles = s.profiles + p)
-        }
-    }
-
-    fun renameMainProfile(name: String) = prefs.edit { s ->
-        s.copy(profiles = s.profiles.map { if (it.id == com.arabtv.iptv.data.Prefs.MAIN_PROFILE) it.copy(name = name.trim().take(24)) else it })
-    }
-
-    fun deleteProfile(id: String) = prefs.edit { s ->
-        if (id == com.arabtv.iptv.data.Prefs.MAIN_PROFILE || id == s.currentProfile) s
-        else s.copy(profiles = s.profiles.filterNot { it.id == id })
-    }
-
-    // ---- Mini player, split screen, live position ------------------------------------------------
-
-    /** Keeps the channel playing in a corner while browsing. */
-    fun minimize() {
-        _showOptions.value = false
-        closeSplit()
-        _mini.value = true
-        _screen.value = Screen.HOME
-    }
-
-    fun expandMini() {
-        _mini.value = false
-        _screen.value = Screen.PLAYER
-    }
-
-    fun openSplit(ch: Channel) {
-        _showOptions.value = false
-        second.play(ch, listOf(ch))
-        _split.value = true
-        setSecondAudio(false)
-    }
-
-    fun setSecondAudio(secondHasSound: Boolean) {
-        _secondAudio.value = secondHasSound
-        playback.player.volume = if (secondHasSound) 0f else 1f
-        secondController?.player?.volume = if (secondHasSound) 1f else 0f
-    }
-
-    fun closeSplit() {
-        if (!_split.value) return
-        _split.value = false
-        secondController?.stop()
-        playback.player.volume = 1f
-    }
-
-    // ---- Reports and deep links ----------------------------------------------------------------------
-
-    /** "Report a problem": remembered for sharing, and the channel's links are looked for again. */
-    fun reportChannel(ch: Channel) {
-        prefs.edit { s ->
-            val r = com.arabtv.iptv.data.Report(ch.id, ch.name, System.currentTimeMillis(), ch.sources.map { it.url })
-            s.copy(reports = (listOf(r) + s.reports.filterNot { it.channelId == ch.id }).take(50))
-        }
-        _messages.tryEmit(UiMessage.ReportSaved)
-        viewModelScope.launch {
-            runCatching { repo.refresh(settings.value.playlists) }
-            val fresh = repo.channels.value.firstOrNull { it.id == ch.id } ?: return@launch
-            withContext(Dispatchers.IO) {
-                for (src in fresh.playableSources.take(MAX_PROBED_LINKS)) probes[src.url] = Http.probeQuality(src)
-            }
-            if (_screen.value == Screen.PLAYER && playback.state.value.channel?.id == ch.id) {
-                playback.play(withBestSource(fresh), playback.queue)
-            }
-        }
-    }
-
-    fun clearReports() = prefs.edit { it.copy(reports = emptyList()) }
-
-    /** Text for sharing the reports (e.g. by message to whoever maintains the app). */
-    fun reportsText(): String = buildString {
-        append("Arab TV - channels that did not play\n")
-        for (r in settings.value.reports) {
-            append("\n").append(r.name).append(" (").append(r.channelId).append(")\n")
-            append(java.text.DateFormat.getDateTimeInstance().format(java.util.Date(r.time))).append("\n")
-            r.links.forEach { append("  ").append(it).append("\n") }
-        }
-    }
-
-    /** Opens a channel from a link (the TV home screen row): arabtv://play/<channel id>. */
-    fun playById(id: String) {
-        val ch = repo.channels.value.firstOrNull { it.id == id } ?: return
-        _choosingProfile.value = false
-        selectTarget(null)
-        open(ch, catalog.value.filter { c -> c.playlist == ch.playlist && c.categories.any { it in ch.categories } })
-    }
+    fun streamUri(uri: android.net.Uri, name: String) = receiveShared(uri, name)
 
     // ---- Updates -------------------------------------------------------------------------------
 
@@ -880,7 +714,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _messages.tryEmit(UiMessage.PhoneVideoNeedsWifi)
                 return
             }
-            servedFromPhone(ch) ?: return
+            (servedFromPhone(ch) ?: return).also { _nowStreaming.value = ch.name }
         } else {
             ch
         }
@@ -917,9 +751,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
         val tv = _target.value
         when {
-            cast.deviceName.value != null -> servedFromPhone(ch)?.let { cast.play(it, it.name) }
-            tv != null -> sendToTv(tv, ch)
-            else -> _shareRequest.value = ch
+            cast.deviceName.value != null -> servedFromPhone(ch)?.let {
+                cast.play(it, it.name)
+                _nowStreaming.value = name
+            }
+            tv is TvTarget.Lan -> sendToTv(tv, ch)
+            else -> _shareRequest.value = ch // choose a TV on this Wi-Fi first
         }
     }
 

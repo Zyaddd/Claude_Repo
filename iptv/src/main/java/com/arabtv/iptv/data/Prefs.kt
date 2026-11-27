@@ -11,7 +11,7 @@ import java.security.SecureRandom
 
 data class UserPlaylist(val name: String, val url: String)
 
-/** A family member: their own My List, history and link choices. Kids profiles see only cartoons, Quran and the library. */
+/** A family member: their own My List, history and link choices. Kids profiles see only cartoons and Quran. */
 data class Profile(val id: String, val name: String, val kids: Boolean = false, val color: Int = 0)
 
 /** A channel the user reported as broken, kept so it can be shared and fixed. */
@@ -64,7 +64,7 @@ data class Settings(
 ) {
     val profile: Profile get() = profiles.firstOrNull { it.id == currentProfile } ?: profiles.first()
 
-    /** Kids mode, or a kids profile: only cartoons, Quran and the library without the PIN. */
+    /** Kids mode, or a kids profile: only cartoons and Quran without the PIN. */
     val kidsLocked: Boolean get() = kidsMode || profile.kids
 }
 

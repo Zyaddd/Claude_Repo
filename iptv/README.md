@@ -49,11 +49,6 @@ Refresh the bundled snapshot with `python3 iptv/tools/update_catalog.py`.
 | **From anywhere** | Internet on both | TV: Settings → TV receiver shows a 10-character pairing code. Phone: TV icon → *Add TV by pairing code*. Commands go through an [ntfy](https://ntfy.sh) relay, signed with the code (HMAC-SHA256) and checked for replays. You can point both devices at a self-hosted ntfy server. |
 | **Chromecast** | TV with Chromecast built-in | Cast icon. Some broadcasters block Chromecast; use the methods above for those. |
 
-**Videos from the phone:** Library → My videos (or Share → Arab TV from the gallery) while a TV is
-chosen plays the video on the TV. The phone serves the file over the Wi-Fi (seeking works) and keeps
-doing so with the screen off; a notification has a Stop button, and it stops by itself 10 minutes
-after the TV stops playing. Works with "Same Wi-Fi" TVs and Chromecast, not over the internet relay.
-
 Once a TV is chosen, the phone becomes a remote: tapping a channel plays it on the TV, and the bar at
 the bottom has previous/next channel, play/pause, volume, mute and stop.
 
@@ -66,13 +61,13 @@ the bottom has previous/next channel, play/pause, volume, mute and stop.
   channel, OK shows the controls, ◀▶ or Menu opens the options (channel list, favorites, quality,
   aspect ratio, sleep timer).
 
-## Library (cartoons)
+## Custom Stream (phone videos on the TV)
 
-Only legal sources: the broadcasters' own YouTube channels (Maspero for Bakkar and Bogy & Tamtam,
-Spacetoon, Majid, Iftah Ya Simsim, Freej, Shaabiat Al Cartoon, Mansour) and official apps
-(Disney+ for the Arabic and Egyptian Disney dubs, Shahid, Spacetoon Go, ADtv, YouTube Kids).
-"My videos" plays your own files from the device or a USB stick. The list is in
-`src/main/assets/library.json`.
+On the phone, **Custom Stream** lists the phone's videos (with thumbnails) and has "Pick a video from
+files" for anything else. Choose the TV once at the top; then every tap plays that video on the TV,
+and tapping another replaces it. "Share → Arab TV" from the gallery works too. The phone serves the
+file over the Wi-Fi (seeking works) and keeps going with the screen off until stopped or 10 minutes
+after the TV stops. Works with "Same Wi-Fi" TVs and Chromecast.
 
 ## Updates inside the app
 
@@ -96,7 +91,7 @@ updates install over it with favorites and settings kept.
 - **Ramadan mode** (automatic by the Hijri calendar): iftar / suhoor countdown, Taraweeh from Makkah,
   Quran row first.
 - **Profiles**: "Who's watching?", each with its own My List, history and link choices; kids
-  profiles see only cartoons, Quran and the library.
+  profiles see only cartoons and Quran.
 
 ## Watching
 

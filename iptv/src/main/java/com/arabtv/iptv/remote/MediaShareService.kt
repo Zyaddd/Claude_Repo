@@ -99,6 +99,10 @@ class MediaShareService : Service() {
         private const val ACTION_STOP = "com.arabtv.iptv.STOP_SHARING"
         private const val IDLE_MS = 10 * 60 * 1000L
 
+        fun stop(context: Context) {
+            runCatching { context.startService(Intent(context, MediaShareService::class.java).setAction(ACTION_STOP)) }
+        }
+
         fun start(context: Context) {
             runCatching {
                 androidx.core.content.ContextCompat.startForegroundService(context, Intent(context, MediaShareService::class.java))
