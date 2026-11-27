@@ -205,6 +205,12 @@ fun PlayerScreen(
     }
 }
 
+/** More than 20 seconds behind the live edge (after a pause or rewind). */
+private fun isBehindLive(p: androidx.media3.common.Player): Boolean {
+    val offset = p.currentLiveOffset
+    return p.isCurrentMediaItemLive && offset != androidx.media3.common.C.TIME_UNSET && offset > 20_000
+}
+
 /** The second channel in split screen: no controls; select it to give it the sound. */
 @Composable
 private fun SecondPane(vm: AppViewModel, modifier: Modifier) {
@@ -344,9 +350,7 @@ private fun PlayerOverlays(
         // "Go live" after pausing or rewinding a live channel.
         val behind by produceState(false, channel.id) {
             while (true) {
-                val p = vm.playback.player
-                value = p.isCurrentMediaItemLive && p.currentLiveOffset != androidx.media3.common.C.TIME_UNSET &&
-                    p.currentLiveOffset > 20_000
+                value = isBehindLive(vm.playback.player)
                 kotlinx.coroutines.delay(1000)
             }
         }
