@@ -348,10 +348,11 @@ private fun PlayerOverlays(
         }
 
         // "Go live" after pausing or rewinding a live channel.
-        val behind by produceState(false, channel.id) {
+        var behind by remember(channel.id) { mutableStateOf(false) }
+        LaunchedEffect(channel.id) {
             while (true) {
-                value = isBehindLive(vm.playback.player)
-                kotlinx.coroutines.delay(1000)
+                behind = isBehindLive(vm.playback.player)
+                delay(1000)
             }
         }
         if (behind && error == null && castDevice == null) {
