@@ -741,8 +741,9 @@ private fun StreamPage(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit) {
 @Composable
 private fun VideoTile(v: LocalVideo, onClick: () -> Unit) {
     val context = LocalContext.current
-    val thumb by produceState<android.graphics.Bitmap?>(null, v.id) {
-        value = withContext(Dispatchers.IO) {
+    var thumb by remember(v.id) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(v.id) {
+        thumb = withContext(Dispatchers.IO) {
             runCatching {
                 if (Build.VERSION.SDK_INT >= 29) {
                     context.contentResolver.loadThumbnail(v.uri, android.util.Size(320, 180), null)
