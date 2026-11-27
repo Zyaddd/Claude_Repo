@@ -17,6 +17,12 @@ About 390 channels, including Al Jazeera, Alarabiya, Al Hadath, Sky News Arabia,
 France 24, DW, **National Geographic Abu Dhabi** (Abu Dhabi Media's own stream), Asharq Documentary,
 Al Jazeera Documentary, MBC 3, Spacetoon and Cartoon Network Arabic.
 
+- **World documentaries:** 23 free English documentary channels (BBC Earth, Smithsonian Channel,
+  Curiosity NOW, Documentary+, History Hit, MagellanTV, Terra Mater WILD, WaterBear, NatureTime,
+  Pluto TV Nature / History / Science / Animals, ...). Only official free, ad-supported services
+  (Pluto TV, Samsung TV Plus, Rakuten, ...) are used; the pay channels (National Geographic,
+  Discovery, History, Animal Planet) that public lists carry as re-streams from unknown servers are
+  left out. The free official National Geographic in the catalog is National Geographic Abu Dhabi.
 - **Find new channels** (Settings → Channels, or the banner on Home) checks the lists online and lets
   you pick which new channels to add. Channels you don't want can be hidden and brought back later.
 - **Auto-repair:** when every link of a channel fails, the app downloads the lists again and switches

@@ -16,6 +16,12 @@ PLAYLIST = "https://raw.githubusercontent.com/iptv-org/iptv/gh-pages/languages/a
 # one), so they add backup and higher-quality links. Must match ChannelRepository.ARAB_COUNTRIES.
 ARAB_COUNTRIES = ["sa", "ae", "eg", "qa", "kw", "bh", "om", "ye", "iq", "sy", "lb", "jo", "ps", "sd", "ly", "tn", "dz", "ma", "mr"]
 STREAMS = "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/{}.m3u"
+# Free, ad-supported English documentary channels (Pluto TV, Samsung TV Plus, Rakuten, ...).
+# Only official free providers: pay channels re-streamed from unknown servers are left out.
+# Must match ChannelRepository.keepWorldDoc in the app.
+WORLD_DOCS = "https://raw.githubusercontent.com/iptv-org/iptv/gh-pages/categories/documentary.m3u"
+OFFICIAL_FREE = re.compile(r"(?i)(amagi\.tv|wurl\.(tv|com)|pluto\.tv|jmp2\.uk/plu-|mediatailor\.[a-z0-9-]+\.amazonaws\.com|rakuten|samsung|xumo|stirr|plex\.tv)")
+NOT_DOCS = re.compile(r"(?i)ink master|teen mom|spike|court tv|food|petrolheads|turbo|obsesion|negocio|dateline|on the case|alien|conspiracy|paranormal|mystery|sensing murder|crime|fbi|forensic|homicid|tough jobs|animales|animaux|animais|aventure|documentari|dokumentar|doku\b|histoire|historia|storia|storie|investiga|natura\b|naturaleza|policial|reportagen|varldskrigen|verdenskrigene|archivos|cazador|crimen|detetives|dossiers|germany|sweden|latam|france|\(es\)| es \(| it \(| de \(")
 FREETV = "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"
 # Must match ChannelRepository.FREETV_GROUPS / FREETV_EXCLUDE in the app.
 FREETV_GROUPS = {
@@ -73,11 +79,32 @@ def main():
         sys.exit("stream files look wrong; not overwriting")
     with open(os.path.join(ASSETS, "iptvorg_streams.m3u"), "w", encoding="utf-8") as f:
         f.write(streams)
+    docs = filter_world_docs(get(WORLD_DOCS))
+    with open(os.path.join(ASSETS, "world_docs.m3u"), "w", encoding="utf-8") as f:
+        f.write(docs)
     with open(os.path.join(ASSETS, "freetv_arab.m3u"), "w", encoding="utf-8") as f:
         f.write(freetv)
     with open(os.path.join(ASSETS, "arabic_names.json"), "w", encoding="utf-8") as f:
         json.dump(dict(sorted(names.items())), f, ensure_ascii=False, indent=0)
     print(f"{m3u.count('#EXTINF')} iptv-org streams, {freetv.count('#EXTINF')} Free-TV streams, {len(names)} Arabic names")
+
+
+def filter_world_docs(text):
+    out, lines = ["#EXTM3U"], text.splitlines()
+    for i, line in enumerate(lines):
+        if not line.startswith("#EXTINF"):
+            continue
+        j = i + 1
+        while j < len(lines) and lines[j].startswith("#"):
+            j += 1
+        if j >= len(lines):
+            continue
+        title = line.rsplit(",", 1)[-1]
+        if OFFICIAL_FREE.search(lines[j]) and "Geo-blocked" not in title and not NOT_DOCS.search(title):
+            out += lines[i:j + 1]
+    if len(out) < 20:
+        sys.exit("documentary list looks wrong; not overwriting")
+    return "\n".join(out) + "\n"
 
 
 def filter_freetv(text):

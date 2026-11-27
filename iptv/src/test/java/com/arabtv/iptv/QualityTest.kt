@@ -62,4 +62,22 @@ class QualityTest {
         val aj = merged.first { it.tvgId == "AlJazeera.qa" }
         assertTrue(aj.sources.size >= 5)
     }
+
+    @Test
+    fun worldDocumentariesAreOfficialFreeAndSeparate() {
+        fun asset(n: String) = listOf("src/main/assets/$n", "iptv/src/main/assets/$n").map(::File).first { it.exists() }.readText()
+        val sources = com.arabtv.iptv.data.ChannelRepository.SOURCES
+        val lists = sources.map { s -> Catalog.build(M3uParser.parse(asset(s.asset)).filter(s.keep), emptyMap(), foreign = s.foreign) }
+        val linksOnly = sources.indices.filter { sources[it].linksOnly }.toSet()
+        val merged = Catalog.merge(lists, linksOnly)
+        val world = merged.filter { it.foreign }
+        println("world docs: ${world.size}: " + world.joinToString { it.name })
+        assertTrue(world.size >= 20)
+        assertTrue(world.all { com.arabtv.iptv.data.Category.DOCUMENTARY in it.categories })
+        // Only official free providers; no re-streamed pay channels from bare IP addresses.
+        assertTrue(world.all { ch -> ch.sources.none { Regex("""^https?://\d+\.\d+\.\d+\.\d+""").containsMatchIn(it.url) } })
+        // The Arabic catalog is unchanged by the new list.
+        val arabicOnly = Catalog.merge(lists.filterIndexed { i, _ -> !sources[i].foreign }, linksOnly.map { if (it > sources.indexOfFirst { s -> s.foreign }) it - 1 else it }.toSet())
+        assertEquals(arabicOnly.size, merged.count { !it.foreign })
+    }
 }

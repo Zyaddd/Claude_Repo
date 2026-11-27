@@ -36,7 +36,12 @@ object Catalog {
      * @param arabicNames channel id (without the "@feed" suffix) -> Arabic name.
      * @param playlist label for a user playlist, or null for the built-in catalog.
      */
-    fun build(entries: List<M3uEntry>, arabicNames: Map<String, String>, playlist: String? = null): List<Channel> {
+    fun build(
+        entries: List<M3uEntry>,
+        arabicNames: Map<String, String>,
+        playlist: String? = null,
+        foreign: Boolean = false,
+    ): List<Channel> {
         data class Acc(val first: M3uEntry, val id: String, val sources: MutableList<StreamSource>)
 
         val byKey = LinkedHashMap<String, Acc>()
@@ -80,6 +85,7 @@ object Catalog {
                 geoBlocked = e.title.contains("[Geo-blocked]", ignoreCase = true) || freeTvGeo,
                 notAlwaysOn = e.title.contains("[Not 24/7]", ignoreCase = true),
                 playlist = playlist,
+                foreign = foreign,
             )
         }
     }

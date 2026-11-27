@@ -47,6 +47,20 @@ fun UpdateDialog(vm: AppViewModel, state: UpdateState, dismissed: Boolean, manua
             },
             confirmButton = {},
         )
+        is UpdateState.NeedsPermission -> {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            AlertDialog(
+                onDismissRequest = { vm.dismissUpdate() },
+                title = { Text(stringResource(R.string.update_permission_title)) },
+                text = { Text(stringResource(R.string.update_permission_body)) },
+                confirmButton = {
+                    TextButton(onClick = { Updater.openInstallSettings(context) }) { Text(stringResource(R.string.open_settings)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { vm.installUpdate(state.release) }) { Text(stringResource(R.string.try_again)) }
+                },
+            )
+        }
         UpdateState.Installing -> AlertDialog(
             onDismissRequest = { vm.dismissUpdate() },
             title = { Text(stringResource(R.string.update_installing)) },

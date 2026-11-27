@@ -138,6 +138,11 @@
     <string name="stream_pick_file">اختر فيديو من الملفات</string>
     <string name="my_videos_allow">اعرض الفيديوهات الموجودة على الجوال</string>
     <string name="my_videos_empty">لا توجد فيديوهات على الجوال. استخدم «اختر فيديو من الملفات».</string>
+    <string name="row_world_docs">وثائقيات عالمية</string>
+    <string name="update_permission_title">اسمح للتطبيق بتثبيت التحديثات</string>
+    <string name="update_permission_body">أندرويد يطلب ذلك مرة واحدة: افتح الإعدادات، وفعّل «السماح من هذا المصدر» (أو المصادر غير المعروفة) لتطبيق Arab TV، ثم ارجع واضغط «حاول مرة أخرى».</string>
+    <string name="open_settings">افتح الإعدادات</string>
+    <string name="try_again">حاول مرة أخرى</string>
     <string name="app_name">تلفاز عربي</string>
     <string name="tab_news">أخبار</string>
     <string name="tab_documentary">وثائقي</string>

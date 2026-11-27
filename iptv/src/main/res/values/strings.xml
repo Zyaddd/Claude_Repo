@@ -138,6 +138,11 @@
     <string name="stream_pick_file">Pick a video from files</string>
     <string name="my_videos_allow">Show the videos on this phone</string>
     <string name="my_videos_empty">No videos found on this phone. Use “Pick a video from files”.</string>
+    <string name="row_world_docs">World documentaries</string>
+    <string name="update_permission_title">Allow Arab TV to install updates</string>
+    <string name="update_permission_body">Android asks once: open Settings, turn on “Allow from this source” (or Unknown sources) for Arab TV, come back and press Try again.</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="try_again">Try again</string>
     <string name="app_name">Arab TV</string>
     <string name="tab_news">News</string>
     <string name="tab_documentary">Documentary</string>

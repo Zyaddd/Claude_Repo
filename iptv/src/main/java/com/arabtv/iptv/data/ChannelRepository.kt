@@ -21,6 +21,8 @@ data class CatalogSource(
     val concat: Boolean = false,
     /** Only adds links to channels other lists have; never adds channels. */
     val linksOnly: Boolean = false,
+    /** International (non-Arabic) channels, listed after the Arabic ones. */
+    val foreign: Boolean = false,
 )
 
 /**
@@ -125,7 +127,7 @@ class ChannelRepository(private val context: Context) {
 
     private fun publish(builtIn: List<Pair<CatalogSource, String>>, user: List<Pair<UserPlaylist, String>>) {
         val lists = builtIn.map { (s, text) ->
-            Catalog.build(M3uParser.parse(text).filter(s.keep), arabicNames)
+            Catalog.build(M3uParser.parse(text).filter(s.keep), arabicNames, foreign = s.foreign)
         }
         val linksOnly = builtIn.indices.filter { builtIn[it].first.linksOnly }.toSet()
         val list = Catalog.merge(lists, linksOnly).toMutableList()
@@ -150,6 +152,18 @@ class ChannelRepository(private val context: Context) {
             "Morocco", "Mauritania",
         )
         private val FREETV_EXCLUDE = Regex("(?i)persia|english|zagros|turkmen|kurd")
+
+        /** Must match OFFICIAL_FREE / NOT_DOCS in iptv/tools/update_catalog.py. */
+        private val OFFICIAL_FREE = Regex(
+            """(?i)(amagi\.tv|wurl\.(tv|com)|pluto\.tv|jmp2\.uk/plu-|mediatailor\.[a-z0-9-]+\.amazonaws\.com|rakuten|samsung|xumo|stirr|plex\.tv)""",
+        )
+        private val NOT_DOCS = Regex(
+            """(?i)ink master|teen mom|spike|court tv|food|petrolheads|turbo|obsesion|negocio|dateline|on the case|alien|conspiracy|paranormal|mystery|sensing murder|crime|fbi|forensic|homicid|tough jobs|animales|animaux|animais|aventure|documentari|dokumentar|doku\b|histoire|historia|storia|storie|investiga|natura\b|naturaleza|policial|reportagen|varldskrigen|verdenskrigene|archivos|cazador|crimen|detetives|dossiers|germany|sweden|latam|france|\(es\)| es \(| it \(| de \(""",
+        )
+
+        /** Free English documentary channels from official ad-supported services only. */
+        fun keepWorldDoc(e: M3uEntry): Boolean =
+            OFFICIAL_FREE.containsMatchIn(e.url) && !e.title.contains("Geo-blocked") && !NOT_DOCS.containsMatchIn(e.title)
 
         /** Must match ARAB_COUNTRIES in iptv/tools/update_catalog.py. */
         val ARAB_COUNTRIES = listOf(
@@ -177,6 +191,14 @@ class ChannelRepository(private val context: Context) {
                 asset = "freetv_arab.m3u",
                 minEntries = 50,
                 keep = ::keepFreeTv,
+            ),
+            CatalogSource(
+                key = "world_docs",
+                urls = listOf("https://raw.githubusercontent.com/iptv-org/iptv/gh-pages/categories/documentary.m3u"),
+                asset = "world_docs.m3u",
+                minEntries = 10,
+                keep = ::keepWorldDoc,
+                foreign = true,
             ),
             // Last, so its extra links can join channels from every list above.
             CatalogSource(

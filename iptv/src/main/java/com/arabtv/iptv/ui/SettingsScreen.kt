@@ -65,6 +65,20 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
             Text(stringResource(R.string.settings), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
         LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp)) {
+            // ---- Updates ----
+            item { Header(stringResource(R.string.sec_updates)) }
+            item {
+                ActionRow(
+                    stringResource(R.string.check_updates),
+                    stringResource(R.string.current_version, BuildConfigInfo.versionName(vm.getApplication<android.app.Application>())),
+                ) { vm.checkForUpdates() }
+            }
+            item {
+                SwitchRow(stringResource(R.string.auto_update), stringResource(R.string.auto_update_help), s.autoUpdate) { on ->
+                    vm.updateSettings { it.copy(autoUpdate = on) }
+                }
+            }
+
             // ---- Receiver ----
             item { Header(stringResource(R.string.sec_receiver)) }
             item {
@@ -194,20 +208,6 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
             }
             if (s.showGuide) {
                 item { ActionRow(stringResource(R.string.guide_sources), s.guideUrls.lines().size.toString() + " ×  XMLTV") { dialog = "guide" } }
-            }
-
-            // ---- Updates ----
-            item { Header(stringResource(R.string.sec_updates)) }
-            item {
-                ActionRow(
-                    stringResource(R.string.check_updates),
-                    stringResource(R.string.current_version, BuildConfigInfo.versionName(vm.getApplication<android.app.Application>())),
-                ) { vm.checkForUpdates() }
-            }
-            item {
-                SwitchRow(stringResource(R.string.auto_update), stringResource(R.string.auto_update_help), s.autoUpdate) { on ->
-                    vm.updateSettings { it.copy(autoUpdate = on) }
-                }
             }
 
             // ---- Playback ----

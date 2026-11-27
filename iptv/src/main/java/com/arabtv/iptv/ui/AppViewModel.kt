@@ -134,15 +134,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val known = s.knownIds
         all.filter { ch ->
             ch.id !in s.hiddenIds &&
-                (ch.playlist != null || known == null || ch.id in known) &&
+                // International documentaries are shown without going through "Find new channels".
+                (ch.playlist != null || ch.foreign || known == null || ch.id in known) &&
                 !(s.hideGeoBlocked && ch.geoBlocked)
-        }.sortedWith(compareBy<Channel>({ if (it.playlist == null) 0 else 1 }, { it.rank() }))
+            // Foreign channels go last, so existing channel numbers do not move.
+        }.sortedWith(compareBy<Channel>({ if (it.playlist == null) 0 else 1 }, { if (it.foreign) 1 else 0 }, { it.rank() }))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** Built-in channels found online that the user has not added yet. */
     val pendingChannels: StateFlow<List<Channel>> = combine(repo.channels, prefs.state) { all, s ->
         val known = s.knownIds ?: return@combine emptyList()
-        all.filter { it.playlist == null && it.id !in known && it.id !in s.hiddenIds }
+        all.filter { it.playlist == null && !it.foreign && it.id !in known && it.id !in s.hiddenIds }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** Every channel, hidden ones included (for the "Hidden channels" screen). */
@@ -487,7 +489,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         if (section != Section.MY_LIST) {
             // Working streams first, then unknown, then dead.
-            list = list.sortedBy { when (health[it.id]) { true -> 0; null -> 1; false -> 2 } }
+            // Arabic channels before international ones; working streams first within each.
+            list = list.sortedWith(
+                compareBy<Channel>({ if (it.foreign) 1 else 0 }, { when (health[it.id]) { true -> 0; null -> 1; false -> 2 } }),
+            )
         }
         if (section == Section.QURAN) {
             // Al-Haram (Makkah) and Al-Masjid An-Nabawi (Madinah) always lead.

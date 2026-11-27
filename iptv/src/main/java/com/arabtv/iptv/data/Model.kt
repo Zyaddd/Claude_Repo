@@ -59,6 +59,8 @@ data class Channel(
     val playlist: String? = null,
     /** The playlist's tvg-id without its "@feed" suffix, used to match the same channel across sources. */
     val tvgId: String? = null,
+    /** From the international (English) documentary list rather than the Arabic lists. */
+    val foreign: Boolean = false,
 ) {
     /** Sources the built-in player can play (YouTube pages open in the YouTube app instead). */
     val playableSources: List<StreamSource> get() = sources.filterNot { it.isYoutube }

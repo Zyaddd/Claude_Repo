@@ -27,6 +27,8 @@ sealed class UpdateState {
     data class Available(val release: Release) : UpdateState()
     data class Downloading(val release: Release, val progress: Float) : UpdateState()
     data object Installing : UpdateState()
+    /** Android has not allowed Arab TV to install apps yet; Settings has to be opened once. */
+    data class NeedsPermission(val release: Release) : UpdateState()
     /** The repository is private (or the release is missing), so the app cannot see it. */
     data object NotReachable : UpdateState()
     /** The new APK was signed with a different key: a one-time uninstall is needed. */
@@ -105,6 +107,10 @@ object Updater {
 
     /** Downloads the APK and hands it to the system installer, which asks the user to confirm. */
     suspend fun downloadAndInstall(context: Context, release: Release) = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
+            _state.value = UpdateState.NeedsPermission(release)
+            return@withContext
+        }
         try {
             val file = File(context.cacheDir, "update.apk")
             _state.value = UpdateState.Downloading(release, 0f)
@@ -158,6 +164,18 @@ object Updater {
                 context, sessionId, Intent(context, InstallResultReceiver::class.java), flags,
             )
             session.commit(pending.intentSender)
+        }
+    }
+
+    /** Opens the screen where Arab TV can be allowed to install apps (TVs differ, so fall back). */
+    fun openInstallSettings(context: Context) {
+        val tries = listOf(
+            Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:" + context.packageName)),
+            Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS),
+            Intent(android.provider.Settings.ACTION_SETTINGS),
+        )
+        for (i in tries) {
+            if (runCatching { context.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) return
         }
     }
 
