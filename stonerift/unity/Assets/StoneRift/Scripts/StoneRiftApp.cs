@@ -7,10 +7,11 @@ using UnityEngine;
 namespace StoneRift.App
 {
     /// <summary>
-    /// The whole app: menu, placing the arena, a match against the bot, touch and voice controls, and the HUD.
+    /// The whole app: menu, placing the arena, a match against the bot or a friend, touch and voice controls, and the HUD.
     /// Created automatically when the app starts, so the scene can be empty.
+    /// Multiplayer screens and networking live in StoneRiftApp.Multiplayer.cs.
     /// </summary>
-    public sealed class StoneRiftApp : MonoBehaviour
+    public sealed partial class StoneRiftApp : MonoBehaviour
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -18,7 +19,7 @@ namespace StoneRift.App
             if (FindAnyObjectByType<StoneRiftApp>() == null) new GameObject("StoneRift").AddComponent<StoneRiftApp>();
         }
 
-        enum Mode { Menu, Playing }
+        enum Mode { Menu, Lobby, Playing }
 
         ArRig _rig;
         ArenaPlacer _placer;
@@ -39,7 +40,13 @@ namespace StoneRift.App
         Vector2 _handScroll;
         string _loadError;
 
-        const int Me = 0, Bot = 1;
+        /// <summary>This phone's player: 0 against the bot or as host, 1 when joining a friend.</summary>
+        int Me => _session?.LocalPlayer ?? 0;
+        int Opp => 1 - Me;
+        bool VsBot => _session == null;
+        string OpponentName => _session?.OpponentName ?? "الكمبيوتر";
+        readonly Queue<List<GameEvent>> _eventQueue = new Queue<List<GameEvent>>();
+        bool _needsSync;
 
         // ------------------------------------------------------------------ setup
 
@@ -87,21 +94,46 @@ namespace StoneRift.App
             _game = Game.Create(_db.Expand(_db.GetDeck(_playerDeck)), _db.Expand(_db.GetDeck(botDeck)), seed,
                 name0: "أنت", name1: "الكمبيوتر");
             _bot = new SimpleBot(seed ^ 0x5bd1);
+            BeginPlaying();
+            Say(_game.ActivePlayer == Me ? "العملة وقعت لصالحك، ابدأ!" : "الكمبيوتر هيبدأ");
+        }
+
+        /// <summary>Shared by bot and friend matches once the Game exists.</summary>
+        void BeginPlaying()
+        {
             _selectedCreature = _selectedHandCard = _targetingTechnique = -1;
             _busy = _botRunning = false;
+            _eventQueue.Clear();
             _mode = Mode.Playing;
             _placer.enabled = true;
+            CreatureView.LocalPlayer = Me;
+            // The arena is drawn with player 0 nearest; turn it round when this phone is player 1.
+            _arena.transform.localRotation = Quaternion.Euler(0, Me == 0 ? 0 : 180, 0);
             _arena.Sync(_game);
-            Say(_game.ActivePlayer == Me ? "العملة وقعت لصالحك، ابدأ!" : "الكمبيوتر هيبدأ");
         }
 
         // ------------------------------------------------------------------ frame loop
 
         void Update()
         {
-            if (_mode != Mode.Playing || _game == null || !_placer.Placed) return;
+            UpdateNetwork();
+            if (_mode != Mode.Playing || _game == null) return;
+            if (!_placer.Placed)
+            {
+                // Nothing to animate until the arena is on the table; draw the current state once it is.
+                _eventQueue.Clear();
+                _needsSync = true;
+                return;
+            }
+            if (_needsSync && !_busy)
+            {
+                _needsSync = false;
+                _arena.Sync(_game);
+            }
 
-            if (_game.Phase == Phase.Main && _game.ActivePlayer == Bot && !_busy && !_botRunning)
+            if (!_busy && _eventQueue.Count > 0) StartCoroutine(Play(_eventQueue.Dequeue()));
+
+            if (VsBot && _game.Phase == Phase.Main && _game.ActivePlayer == Opp && !_busy && !_botRunning)
                 StartCoroutine(BotTurn());
 
             var input = TouchInput.Current;
@@ -151,6 +183,13 @@ namespace StoneRift.App
         bool Run(GameAction action)
         {
             if (_busy) return false;
+            if (_session != null)
+            {
+                // Both phones animate the move when the host confirms it (ActionApplied).
+                var err = _session.Submit(action);
+                if (err != ActionError.None) Say(ErrorText(err));
+                return err == ActionError.None;
+            }
             var r = _game.Execute(action);
             if (!r.Ok)
             {
@@ -179,12 +218,12 @@ namespace StoneRift.App
         {
             _botRunning = true;
             yield return new WaitForSeconds(0.8f);
-            for (int i = 0; i < 40 && _game.Phase == Phase.Main && _game.ActivePlayer == Bot; i++)
+            for (int i = 0; i < 40 && _game.Phase == Phase.Main && _game.ActivePlayer == Opp; i++)
             {
-                var action = _bot.ChooseAction(_game, Bot);
+                var action = _bot.ChooseAction(_game, Opp);
                 if (action == null) break;
                 var r = _game.Execute(action);
-                if (!r.Ok) { _game.Execute(new EndTurn { Player = Bot }); break; }
+                if (!r.Ok) { _game.Execute(new EndTurn { Player = Opp }); break; }
                 yield return Play(r.Events);
                 yield return new WaitForSeconds(action is EndTurn ? 0.1f : 0.55f);
             }
@@ -196,7 +235,7 @@ namespace StoneRift.App
         void OnHeard(List<string> guesses)
         {
             if (_game == null || _mode != Mode.Playing) return;
-            if (_game.ActivePlayer != Me || _busy) { Say("استنى لحد ما ييجي دورك"); return; }
+            if (_game.ActivePlayer != Me || _busy || (_session?.AwaitingHost ?? false)) { Say("استنى لحد ما ييجي دورك"); return; }
 
             VoiceCommand first = null;
             foreach (var g in guesses)
@@ -231,10 +270,10 @@ namespace StoneRift.App
         {
             switch (e.Type)
             {
-                case GameEventType.TurnStarted: Say(e.Player == Me ? "دورك!" : "دور الكمبيوتر…"); break;
+                case GameEventType.TurnStarted: Say(e.Player == Me ? "دورك!" : "دور " + OpponentName + "…"); break;
                 case GameEventType.CreatureSummoned: Say(Name(e.Target) + " نزل الساحة"); break;
                 case GameEventType.AttackDeclared:
-                    Say(Name(e.Source) + " بيهاجم " + (e.Target.HasValue ? Name(e.Target) : (e.Player == Me ? "الكمبيوتر مباشرة" : "إنت مباشرة")));
+                    Say(Name(e.Source) + " بيهاجم " + (e.Target.HasValue ? Name(e.Target) : (e.Player == Me ? OpponentName + " مباشرة" : "إنت مباشرة")));
                     break;
                 case GameEventType.TrapTriggered: Say("فخ! " + Name(e.Source)); break;
                 case GameEventType.CreatureDestroyed: Say(Name(e.Target) + " اتدمّر"); break;
@@ -318,10 +357,12 @@ namespace StoneRift.App
                 return;
             }
             if (_mode == Mode.Menu) { DrawMenu(); return; }
+            if (_mode == Mode.Lobby) { DrawLobby(); return; }
             if (!_placer.Placed) { DrawPlacement(); return; }
 
             DrawTopBar();
             if (_game.Phase == Phase.GameOver) { DrawGameOver(); return; }
+            if (DrawConnectionBanner()) return;
             DrawActions();
             DrawHand();
         }
@@ -342,9 +383,10 @@ namespace StoneRift.App
                 if (GUI.Button(new Rect(x, 280 + i * 90, w, 75), T(d.NameAr), _button)) _playerDeck = d.Id;
             }
             GUI.backgroundColor = new Color(0.4f, 1f, 0.5f);
-            if (GUI.Button(new Rect(x, 480, w, 90), T("ابدأ ماتش ضد الكمبيوتر"), _button)) StartMatch();
+            if (GUI.Button(new Rect(x, 480, w, 85), T("ماتش ضد الكمبيوتر"), _button)) StartMatch();
+            GUI.backgroundColor = new Color(0.45f, 0.8f, 1f);
+            if (GUI.Button(new Rect(x, 580, w, 85), T("العب مع صاحبك (نفس الواي فاي)"), _button)) OpenLobby();
             GUI.backgroundColor = Color.white;
-            GUI.Label(new Rect(x, 600, w, 120), T("اللعب مع صاحبك على نفس الترابيزة جاي في التحديث الجاي."), _label);
         }
 
         void DrawPlacement()
@@ -365,13 +407,13 @@ namespace StoneRift.App
             var bar = Ui(new Rect(0, 0, VW, 92));
             GUI.Box(bar, GUIContent.none, _box);
             var me = _game.Players[Me];
-            var bot = _game.Players[Bot];
+            var bot = _game.Players[Opp];
             float third = VW / 3;
             GUI.Label(new Rect(0, 4, third, 44), T($"إنت: {me.Life}") , _label);
             GUI.Label(new Rect(0, 44, third, 40), T($"طاقة {me.Energy}/{me.MaxEnergy}  ديك {me.Deck.Count}"), _label);
-            string turn = _game.Phase == Phase.GameOver ? "انتهى" : _game.ActivePlayer == Me ? "دورك" : "دور الكمبيوتر";
+            string turn = _game.Phase == Phase.GameOver ? "انتهى" : _game.ActivePlayer == Me ? "دورك" : "دور " + OpponentName;
             GUI.Label(new Rect(third, 4, third, 44), T(turn), _big);
-            GUI.Label(new Rect(third * 2, 4, third, 44), T($"الكمبيوتر: {bot.Life}"), _label);
+            GUI.Label(new Rect(third * 2, 4, third, 44), T($"{OpponentName}: {bot.Life}"), _label);
             GUI.Label(new Rect(third * 2, 44, third, 40), T($"طاقة {bot.Energy}/{bot.MaxEnergy}  إيد {bot.Hand.Count}"), _label);
 
             var msg = !string.IsNullOrEmpty(_voice.Status) && (_voice.Listening || _voice.Thinking) ? _voice.Status : _message;
@@ -389,8 +431,8 @@ namespace StoneRift.App
             var r = Ui(new Rect(x, 280, w, 300));
             GUI.Box(r, GUIContent.none, _box);
             GUI.Label(new Rect(x, 300, w, 80), T(_game.Winner == Me ? "كسبت!" : "خسرت"), _big);
-            if (GUI.Button(new Rect(x + 30, 400, w - 60, 70), T("ماتش جديد"), _button)) StartMatch();
-            if (GUI.Button(new Rect(x + 30, 485, w - 60, 70), T("القايمة"), _button)) { _mode = Mode.Menu; _placer.ResetPlacement(); _placer.enabled = false; }
+            if (VsBot && GUI.Button(new Rect(x + 30, 400, w - 60, 70), T("ماتش جديد"), _button)) StartMatch();
+            if (GUI.Button(new Rect(x + 30, 485, w - 60, 70), T("القايمة"), _button)) BackToMenu();
         }
 
         void DrawActions()
@@ -398,7 +440,7 @@ namespace StoneRift.App
             float y = VirtualHeight - 290, h = 80;
             var area = Ui(new Rect(0, y - 10, VW, h + 20));
             GUI.Box(area, GUIContent.none, _box);
-            bool myTurn = _game.ActivePlayer == Me && !_busy;
+            bool myTurn = _game.ActivePlayer == Me && !_busy && !(_session?.AwaitingHost ?? false);
             GUI.enabled = myTurn;
 
             var hand = _game.Players[Me].Hand.FirstOrDefault(c => c.InstanceId == _selectedHandCard);

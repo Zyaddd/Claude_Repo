@@ -9,6 +9,9 @@ namespace StoneRift.App
     /// </summary>
     public sealed class CreatureView : MonoBehaviour
     {
+        /// <summary>Which player this phone is, so our constructs get the friendly label colour.</summary>
+        public static int LocalPlayer;
+
         public int InstanceId { get; private set; }
         public int Owner { get; private set; }
         public CardDefinition Def { get; private set; }
@@ -116,7 +119,7 @@ namespace StoneRift.App
                 ? $"<b><color=#ff9a5a>{atk}</color></b> / {def}"
                 : $"{atk} / <b><color=#7ec8ff>{def}</color></b>";
             _label.text = ArabicShaper.Fix(Def.NameAr.Split('،')[0]) + "\n" + stats;
-            _label.color = c.Owner == 0 ? new Color(0.85f, 1f, 0.85f) : new Color(1f, 0.85f, 0.85f);
+            _label.color = c.Owner == LocalPlayer ? new Color(0.85f, 1f, 0.85f) : new Color(1f, 0.85f, 0.85f);
         }
 
         public void SetSelected(bool on)

@@ -143,3 +143,41 @@ namespace StoneRift.Core.Net
         }
     }
 }
+
+namespace StoneRift.Core.Net
+{
+    public static class NetInfo
+    {
+        /// <summary>This device's IPv4 addresses on Wi-Fi or hotspot, to show the host's address on screen.</summary>
+        public static List<string> LocalIPv4Addresses()
+        {
+            var result = new List<string>();
+            try
+            {
+                foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (nic.OperationalStatus != OperationalStatus.Up) continue;
+                    foreach (var a in nic.GetIPProperties().UnicastAddresses)
+                        if (a.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a.Address))
+                            result.Add(a.Address.ToString());
+                }
+            }
+            catch (Exception) { /* Not allowed on some phones; fall back below. */ }
+
+            if (result.Count == 0)
+            {
+                // Asking the system which local address it would use for an outside address sends no packets.
+                try
+                {
+                    using (var s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
+                    {
+                        s.Connect("10.255.255.255", 9);
+                        if (s.LocalEndPoint is IPEndPoint ep && !IPAddress.IsLoopback(ep.Address)) result.Add(ep.Address.ToString());
+                    }
+                }
+                catch (Exception) { }
+            }
+            return result.Distinct().ToList();
+        }
+    }
+}

@@ -139,6 +139,7 @@ namespace StoneRift.EditorTools
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.SplashScreen.showUnityLogo = false;
+            PlayerSettings.Android.forceInternetPermission = true; // Local-network multiplayer.
 
             // A fixed beta key, so every new APK installs as an update. Not for store releases.
             PlayerSettings.Android.useCustomKeystore = true;
