@@ -71,6 +71,7 @@ namespace StoneRift.Core
         AlreadyChangedPosition,
         AlreadyInPosition,
         NothingToRevive,
+        NotConnected,       // Multiplayer: the other phone is not connected right now.
     }
 
     public sealed class ActionResult

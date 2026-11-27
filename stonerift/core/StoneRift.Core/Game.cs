@@ -535,6 +535,36 @@ namespace StoneRift.Core
 
         // ------------------------------------------------------------------ helpers for UI and bots
 
+        /// <summary>
+        /// Fingerprint of everything that matters in the match. Two phones playing the same match
+        /// compare it after every action to catch any difference early.
+        /// </summary>
+        public ulong StateHash()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append(TurnNumber).Append('|').Append(ActivePlayer).Append('|').Append((int)Phase).Append('|').Append(Winner).Append('|');
+            sb.Append(Field?.Card.InstanceId ?? 0).Append('|');
+            foreach (var p in Players)
+            {
+                sb.Append(p.Life).Append(',').Append(p.Energy).Append(',').Append(p.MaxEnergy).Append(';');
+                foreach (var c in p.Deck) sb.Append(c.InstanceId).Append(',');
+                sb.Append(';');
+                foreach (var c in p.Hand) sb.Append(c.InstanceId).Append(',');
+                sb.Append(';');
+                foreach (var c in p.Graveyard) sb.Append(c.InstanceId).Append(',');
+                sb.Append(';');
+                foreach (var c in p.Creatures)
+                    if (c == null) sb.Append("-,");
+                    else sb.Append(c.InstanceId).Append(':').Append((int)c.Position).Append(':').Append(c.HasAttacked ? 1 : 0)
+                           .Append(':').Append(c.ChangedPosition ? 1 : 0).Append(':').Append(c.FrozenThroughTurn).Append(':')
+                           .Append(c.ProtectedThroughTurn).Append(':').Append(c.TempAttack).Append(':').Append(c.TempDefense).Append(',');
+                sb.Append(';');
+                foreach (var s in p.Supports) sb.Append(s?.InstanceId ?? 0).Append(',');
+                sb.Append('#');
+            }
+            return Hashing.Fnv1a64(sb.ToString());
+        }
+
         /// <summary>For tests, tutorials and debug menus: puts a new copy of a card in a player's hand.</summary>
         public CardInstance DebugAddToHand(int player, CardDefinition def)
         {
