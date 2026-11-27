@@ -108,6 +108,8 @@ class MainActivity : AppCompatActivity() {
                     UiMessage.NoNewChannels -> context.getString(R.string.msg_no_new_channels)
                     is UiMessage.ChannelsAdded -> context.getString(R.string.msg_channels_added, m.count)
                     UiMessage.ReportSaved -> context.getString(R.string.msg_report_saved)
+                    UiMessage.PhoneVideoNeedsWifi -> context.getString(R.string.msg_phone_video_wifi)
+                    UiMessage.NoLocalNetwork -> context.getString(R.string.msg_no_local_network)
                 }
                 snackbar.showSnackbar(text)
             }
@@ -146,6 +148,16 @@ class MainActivity : AppCompatActivity() {
                 Screen.SETTINGS -> SettingsScreen(vm, onRequestPin = { disable -> pinRequest = disable })
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+        }
+
+        // A video shared from the gallery: ask which TV to play it on.
+        val shared by vm.shareRequest.collectAsState()
+        LaunchedEffect(shared) {
+            shared?.let {
+                tvSheetFor = it
+                tvSheetOpen = true
+                vm.shareRequestHandled()
+            }
         }
 
         if (tvSheetOpen) TvSheet(vm, tvSheetFor) { tvSheetOpen = false; tvSheetFor = null }
@@ -191,8 +203,19 @@ class MainActivity : AppCompatActivity() {
         handleLink(intent)
     }
 
-    /** arabtv://play/<channel id> from the TV home screen row. */
+    /** arabtv://play/<channel id> from the TV home screen row, or a video shared from the gallery. */
     private fun handleLink(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND) {
+            val stream = androidx.core.content.IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                ?: return
+            val name = runCatching {
+                contentResolver.query(stream, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) c.getString(0) else null
+                }
+            }.getOrNull() ?: "Video"
+            vm.receiveShared(stream, name)
+            return
+        }
         val uri = intent?.data ?: return
         if (uri.scheme != "arabtv" || uri.host != "play") return
         val id = uri.pathSegments.firstOrNull() ?: return

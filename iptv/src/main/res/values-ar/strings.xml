@@ -129,6 +129,11 @@
     <string name="clear">مسح</string>
     <string name="start_on_boot">التشغيل مع التلفاز</string>
     <string name="start_on_boot_help">يفتح التطبيق (وآخر قناة) عند تشغيل التلفاز. قد يطلب أندرويد السماح بـ «الظهور فوق التطبيقات الأخرى».</string>
+    <string name="msg_phone_video_wifi">فيديوهات الجوال تُعرض على تلفاز على نفس شبكة الواي فاي. اختر التلفاز من «نفس شبكة الواي فاي».</string>
+    <string name="msg_no_local_network">الجوال غير متصل بشبكة واي فاي، فلا يستطيع التلفاز الوصول إلى الفيديو.</string>
+    <string name="share_channel">إرسال الفيديو إلى التلفاز</string>
+    <string name="share_notification">يُعرض الفيديو الخاص بك على التلفاز</string>
+    <string name="share_notification_text">أبقِ الواي فاي يعمل. يتوقف تلقائياً بعد 10 دقائق من توقف التلفاز عن العرض.</string>
     <string name="app_name">تلفاز عربي</string>
     <string name="tab_news">أخبار</string>
     <string name="tab_documentary">وثائقي</string>

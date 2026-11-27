@@ -53,7 +53,7 @@ class ReceiverHub(private val context: Context) {
     @Synchronized
     fun start(relayServer: String, code: String) {
         if (server != null && config == relayServer to code) {
-            _status.value = _status.value.copy(lanAddress = localIpv4())
+            _status.value = _status.value.copy(lanAddress = Net.localIpv4(context))
             return
         }
         stop()
@@ -61,7 +61,7 @@ class ReceiverHub(private val context: Context) {
         val s = LanServer(deviceName) { cmd -> deliver(cmd) }
         val port = s.start(Prefs.DEFAULT_PORT..Prefs.DEFAULT_PORT + 8)
         server = s
-        _status.value = ReceiverStatus(running = true, lanPort = port, lanAddress = localIpv4())
+        _status.value = ReceiverStatus(running = true, lanPort = port, lanAddress = Net.localIpv4(context))
         if (port > 0) register(port)
 
         relayJob = scope.launch {

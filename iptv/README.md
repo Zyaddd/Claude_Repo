@@ -49,6 +49,11 @@ Refresh the bundled snapshot with `python3 iptv/tools/update_catalog.py`.
 | **From anywhere** | Internet on both | TV: Settings → TV receiver shows a 10-character pairing code. Phone: TV icon → *Add TV by pairing code*. Commands go through an [ntfy](https://ntfy.sh) relay, signed with the code (HMAC-SHA256) and checked for replays. You can point both devices at a self-hosted ntfy server. |
 | **Chromecast** | TV with Chromecast built-in | Cast icon. Some broadcasters block Chromecast; use the methods above for those. |
 
+**Videos from the phone:** Library → My videos (or Share → Arab TV from the gallery) while a TV is
+chosen plays the video on the TV. The phone serves the file over the Wi-Fi (seeking works) and keeps
+doing so with the screen off; a notification has a Stop button, and it stops by itself 10 minutes
+after the TV stops playing. Works with "Same Wi-Fi" TVs and Chromecast, not over the internet relay.
+
 Once a TV is chosen, the phone becomes a remote: tapping a channel plays it on the TV, and the bar at
 the bottom has previous/next channel, play/pause, volume, mute and stop.
 
@@ -97,7 +102,8 @@ updates install over it with favorites and settings kept.
 
 - Picture-in-picture (TV and phone), "keep watching in corner" while browsing, and two channels
   side by side (◀▶ moves the sound).
-- Pause a live channel and continue (as far back as the stream keeps), with "Go live".
+- Live channels always play at the live point: they start there, resume there after a pause,
+  and jump back by themselves if they drift more than a minute behind.
 - Programme guide grid (next 3 hours).
 - Android TV home-screen row with your favorites; "Start with the TV" (Android may ask to allow
   "Display over other apps").

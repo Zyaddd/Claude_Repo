@@ -105,7 +105,9 @@ class CastHelper(context: Context) {
         val path = url.substringBefore('?').lowercase()
         return when {
             path.endsWith(".mpd") -> "application/dash+xml"
-            path.endsWith(".mp4") -> "video/mp4"
+            path.endsWith(".mp4") || path.endsWith(".m4v") || path.endsWith(".mov") -> "video/mp4"
+            path.endsWith(".webm") -> "video/webm"
+            path.endsWith(".mkv") -> "video/x-matroska"
             path.endsWith(".ts") -> "video/mp2t"
             else -> "application/x-mpegURL"
         }

@@ -99,6 +99,8 @@ sealed class UiMessage {
     data object NoApp : UiMessage()
     data object NoChannelNumber : UiMessage()
     data object ReportSaved : UiMessage()
+    data object PhoneVideoNeedsWifi : UiMessage()
+    data object NoLocalNetwork : UiMessage()
 }
 
 /** Category order used for channel numbers and the home rows. */
@@ -528,7 +530,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val tv = _target.value
         when {
             cast.deviceName.value != null -> {
-                cast.play(best, title(best))
+                val castable = if (isOnThisPhone(best)) servedFromPhone(best) ?: return else best
+                cast.play(castable, title(best))
                 playback.play(best, queue)
                 playback.player.pause()
                 _screen.value = Screen.PLAYER
@@ -691,8 +694,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             categories = setOf(Category.OTHER),
             sources = listOf(StreamSource(v.uri.toString())),
         )
-        playback.play(ch(video), all.map { ch(it) })
-        _screen.value = Screen.PLAYER
+        val tv = _target.value
+        when {
+            // Controlling a TV: the video goes to the TV, not the phone screen.
+            tv != null -> sendToTv(tv, ch(video))
+            cast.deviceName.value != null -> servedFromPhone(ch(video))?.let { cast.play(it, it.name) }
+            else -> {
+                playback.play(ch(video), all.map { ch(it) })
+                _screen.value = Screen.PLAYER
+            }
+        }
     }
 
     // ---- Prayer times, adhan, Ramadan -------------------------------------------------------------
@@ -798,12 +809,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         playback.player.volume = 1f
     }
 
-    /** Back to the live edge after pausing or rewinding. */
-    fun goLive() {
-        playback.player.seekToDefaultPosition()
-        playback.player.play()
-    }
-
     // ---- Reports and deep links ----------------------------------------------------------------------
 
     /** "Report a problem": remembered for sharing, and the channel's links are looked for again. */
@@ -869,9 +874,56 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun sendToTv(tv: TvTarget, ch: Channel) {
         _target.value = tv
+        val toSend = if (isOnThisPhone(ch)) {
+            // A video stored on this phone: serve it on the Wi-Fi and send the TV that link.
+            if (tv !is TvTarget.Lan) {
+                _messages.tryEmit(UiMessage.PhoneVideoNeedsWifi)
+                return
+            }
+            servedFromPhone(ch) ?: return
+        } else {
+            ch
+        }
         if (_screen.value == Screen.PLAYER) playback.player.pause()
-        send(tv, Command(Action.PLAY, channel = ch, from = deviceLabel()))
+        send(tv, Command(Action.PLAY, channel = toSend, from = deviceLabel()))
     }
+
+    private fun isOnThisPhone(ch: Channel): Boolean =
+        ch.sources.firstOrNull()?.url?.let { it.startsWith("content:") || it.startsWith("file:") } == true
+
+    /** The same video as a link other devices on the Wi-Fi can open (and the sharing service started). */
+    private fun servedFromPhone(ch: Channel): Channel? {
+        val app = getApplication<Application>()
+        val uri = android.net.Uri.parse(ch.sources.first().url)
+        val url = arabTv.mediaServer.share(uri, ch.name)
+        if (url == null) {
+            _messages.tryEmit(UiMessage.NoLocalNetwork)
+            return null
+        }
+        com.arabtv.iptv.remote.MediaShareService.start(app)
+        return ch.copy(id = "phone:" + url.hashCode(), sources = listOf(StreamSource(url)))
+    }
+
+    /** A video shared to the app from the gallery: send it to the chosen TV, or ask which TV. */
+    private val _shareRequest = MutableStateFlow<Channel?>(null)
+    val shareRequest: StateFlow<Channel?> = _shareRequest.asStateFlow()
+
+    fun receiveShared(uri: android.net.Uri, name: String) {
+        val ch = Channel(
+            id = "shared:" + uri.hashCode(),
+            name = name,
+            categories = setOf(Category.OTHER),
+            sources = listOf(StreamSource(uri.toString())),
+        )
+        val tv = _target.value
+        when {
+            cast.deviceName.value != null -> servedFromPhone(ch)?.let { cast.play(it, it.name) }
+            tv != null -> sendToTv(tv, ch)
+            else -> _shareRequest.value = ch
+        }
+    }
+
+    fun shareRequestHandled() { _shareRequest.value = null }
 
     fun remote(action: Action) {
         val tv = _target.value ?: return

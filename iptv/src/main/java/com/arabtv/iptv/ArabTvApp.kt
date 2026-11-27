@@ -16,6 +16,8 @@ class ArabTvApp : Application() {
     val repository: ChannelRepository by lazy { ChannelRepository(this) }
     val receiver: ReceiverHub by lazy { ReceiverHub(this) }
     val guide: GuideRepository by lazy { GuideRepository(this) }
+    /** Serves videos from this phone to the TV on the local network. */
+    val mediaServer: com.arabtv.iptv.remote.MediaServer by lazy { com.arabtv.iptv.remote.MediaServer(this) }
 
     companion object {
         fun detectTv(context: Context): Boolean {

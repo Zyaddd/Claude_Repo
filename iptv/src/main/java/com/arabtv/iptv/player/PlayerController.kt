@@ -195,17 +195,45 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
         return next
     }
 
-    /**
-     * Pause / resume. Live channels resume where they were paused (as far back as the stream keeps,
-     * often 30 seconds to a few minutes); "Go live" jumps to the live edge. If the stream no
-     * longer has that point, playback restarts at live by itself (BEHIND_LIVE_WINDOW).
-     */
+    /** Pause / resume. Live channels always resume at the live point, never at old video. */
     fun togglePause() {
-        if (player.isPlaying) player.pause() else player.play()
+        if (player.isPlaying) {
+            player.pause()
+        } else {
+            if (player.isCurrentMediaItemLive) player.seekToDefaultPosition()
+            player.play()
+        }
+    }
+
+    /** How far behind live the stream normally plays (measured once it starts), to spot drifting. */
+    private var normalOffset = C.TIME_UNSET
+    private var catchUpJob: Job? = null
+
+    /**
+     * Keeps live channels at the live point: if playback drifts more than a minute behind where the
+     * stream normally plays (after long rebuffering, for example), it jumps back to live by itself.
+     */
+    private fun watchLiveDrift() {
+        catchUpJob?.cancel()
+        normalOffset = C.TIME_UNSET
+        catchUpJob = scope.launch {
+            while (true) {
+                delay(5_000)
+                if (!player.isPlaying || !player.isCurrentMediaItemLive) continue
+                val offset = player.currentLiveOffset
+                if (offset == C.TIME_UNSET) continue
+                if (normalOffset == C.TIME_UNSET) {
+                    normalOffset = offset
+                } else if (offset > normalOffset + 60_000) {
+                    player.seekToDefaultPosition()
+                }
+            }
+        }
     }
 
     fun stop() {
         retryJob?.cancel()
+        catchUpJob?.cancel()
         player.stop()
         player.clearMediaItems()
         _state.value = PlaybackState()
@@ -257,6 +285,7 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
         player.setMediaItem(item)
         player.prepare()
         player.play()
+        watchLiveDrift()
     }
 
     private fun tryNext(error: PlaybackException) {
@@ -318,7 +347,7 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
                 path.startsWith("content:") || path.startsWith("file:") -> listOf(null)
                 path.endsWith(".m3u8") || path.endsWith(".m3u") -> listOf(MimeTypes.APPLICATION_M3U8)
                 path.endsWith(".mpd") -> listOf(MimeTypes.APPLICATION_MPD)
-                path.endsWith(".mp4") || path.endsWith(".ts") || path.endsWith(".mkv") -> listOf(null)
+                listOf(".mp4", ".ts", ".mkv", ".mov", ".webm", ".3gp", ".m4v", ".avi", ".mp3").any { path.endsWith(it) } -> listOf(null)
                 else -> listOf(MimeTypes.APPLICATION_M3U8, null)
             }
         }

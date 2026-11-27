@@ -16,6 +16,11 @@
     <!-- "Start with the TV". -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Sending a video from the phone to the TV keeps running with the screen off. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- One APK for phones, tablets and Android TV. -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -65,11 +70,22 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="arabtv" />
             </intent-filter>
+            <!-- Gallery / Files: "Share" a video to Arab TV to play it on the TV. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
         </activity>
 
         <receiver
             android:name=".update.InstallResultReceiver"
             android:exported="false" />
+
+        <service
+            android:name=".remote.MediaShareService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <receiver
             android:name=".tv.BootReceiver"

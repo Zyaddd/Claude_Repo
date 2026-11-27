@@ -205,12 +205,6 @@ fun PlayerScreen(
     }
 }
 
-/** More than 20 seconds behind the live edge (after a pause or rewind). */
-private fun isBehindLive(p: androidx.media3.common.Player): Boolean {
-    val offset = p.currentLiveOffset
-    return p.isCurrentMediaItemLive && offset != androidx.media3.common.C.TIME_UNSET && offset > 20_000
-}
-
 /** The second channel in split screen: no controls; select it to give it the sound. */
 @Composable
 private fun SecondPane(vm: AppViewModel, modifier: Modifier) {
@@ -345,22 +339,6 @@ private fun PlayerOverlays(
                     )
                 }
             }
-        }
-
-        // "Go live" after pausing or rewinding a live channel.
-        var behind by remember(channel.id) { mutableStateOf(false) }
-        LaunchedEffect(channel.id) {
-            while (true) {
-                behind = isBehindLive(vm.playback.player)
-                delay(1000)
-            }
-        }
-        if (behind && error == null && castDevice == null) {
-            androidx.compose.material3.Button(
-                onClick = { vm.goLive() },
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = LiveRed, contentColor = Color.White),
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 84.dp),
-            ) { Text(stringResource(R.string.go_live)) }
         }
 
         if (number.isNotEmpty()) {
@@ -612,9 +590,6 @@ private fun PlayerOptionsDialog(
                         Spacer(Modifier.size(4.dp))
                         val activity = LocalContext.current as? MainActivity
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            OptionButton(R.drawable.ic_play, stringResource(R.string.go_live), Modifier.weight(1f)) {
-                                vm.goLive(); onDismiss()
-                            }
                             if (activity?.supportsPip() == true) {
                                 OptionButton(R.drawable.ic_aspect, stringResource(R.string.pip), Modifier.weight(1f)) {
                                     onDismiss(); activity.enterPipNow()

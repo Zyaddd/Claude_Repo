@@ -129,6 +129,11 @@
     <string name="clear">Clear</string>
     <string name="start_on_boot">Start with the TV</string>
     <string name="start_on_boot_help">Opens Arab TV (and the last channel) when the TV starts. Android may ask you to allow “Display over other apps”.</string>
+    <string name="msg_phone_video_wifi">Videos from this phone play on a TV on the same Wi-Fi. Pick the TV under “Same Wi-Fi”.</string>
+    <string name="msg_no_local_network">This phone isn’t on a Wi-Fi network, so the TV can’t reach the video.</string>
+    <string name="share_channel">Sending videos to the TV</string>
+    <string name="share_notification">Playing your video on the TV</string>
+    <string name="share_notification_text">Keep Wi-Fi on. It stops by itself 10 minutes after the TV stops playing.</string>
     <string name="app_name">Arab TV</string>
     <string name="tab_news">News</string>
     <string name="tab_documentary">Documentary</string>
