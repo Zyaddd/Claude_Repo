@@ -1,0 +1,42 @@
+[
+  {
+    "Id": "flame_storm",
+    "NameAr": "لهب العاصفة",
+    "Cards": {
+      "saeer_dune_dragon": 3,
+      "ember_scorpion": 3,
+      "flame_wolf": 3,
+      "storm_crow": 3,
+      "thunder_falcon": 3,
+      "fire_meteor": 2,
+      "battle_cry": 3,
+      "shard_crystal": 2,
+      "arena_quake": 1,
+      "shard_meteor": 2,
+      "shadow_mirror": 2,
+      "granite_shield": 1,
+      "sunset_oasis": 2
+    }
+  },
+  {
+    "Id": "river_guard",
+    "NameAr": "حرس النهر",
+    "Cards": {
+      "sphinx_guardian": 3,
+      "granite_golem": 2,
+      "deep_crocodile": 3,
+      "river_serpent": 2,
+      "night_specter": 3,
+      "umbra_lord": 2,
+      "stone_pup": 3,
+      "river_curse": 2,
+      "shadow_return": 1,
+      "shard_crystal": 1,
+      "arena_quake": 1,
+      "whirlpool": 2,
+      "granite_shield": 2,
+      "flooded_valley": 2,
+      "shard_meteor": 1
+    }
+  }
+]

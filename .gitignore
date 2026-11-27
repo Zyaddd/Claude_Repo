@@ -8,3 +8,10 @@ local.properties
 captures/
 *.jks
 *.keystore
+
+# BINDERS game
+binders/core/.build/
+binders/**/Library/
+binders/**/Temp/
+binders/**/Logs/
+binders/**/UserSettings/

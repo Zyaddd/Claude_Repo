@@ -1,0 +1,7 @@
+<Project>
+  <!-- Keep build output out of the Unity package folder (Unity ignores folders that start with a dot). -->
+  <PropertyGroup>
+    <BaseOutputPath>$(MSBuildThisFileDirectory).build/bin/$(MSBuildProjectName)/</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory).build/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

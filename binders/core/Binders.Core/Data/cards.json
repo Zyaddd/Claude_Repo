@@ -1,0 +1,551 @@
+[
+  {
+    "Id": "saeer_dune_dragon",
+    "NameAr": "سَعير، تنين الكثبان",
+    "NameEn": "Saeer, Dune Dragon",
+    "Aliases": [
+      "سعير",
+      "تنين الكثبان",
+      "التنين",
+      "saeer",
+      "dragon"
+    ],
+    "Type": "Creature",
+    "Faction": "Flame",
+    "Cost": 5,
+    "Attack": 2400,
+    "Defense": 1600,
+    "Effects": [
+      {
+        "Kind": "BonusDamageOnKill",
+        "Amount": 300,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "لما يدمّر وحش في معركة، الخصم يخسر 300 نقطة زيادة.",
+    "ModelId": "saeer_dune_dragon"
+  },
+  {
+    "Id": "ember_scorpion",
+    "NameAr": "عقرب الجمر",
+    "NameEn": "Ember Scorpion",
+    "Aliases": [
+      "العقرب",
+      "عقرب",
+      "scorpion"
+    ],
+    "Type": "Creature",
+    "Faction": "Flame",
+    "Cost": 2,
+    "Attack": 1000,
+    "Defense": 400,
+    "Effects": [
+      {
+        "Kind": "Haste",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يقدر يهاجم في نفس الدور اللي اتحط فيه.",
+    "ModelId": "ember_scorpion"
+  },
+  {
+    "Id": "flame_wolf",
+    "NameAr": "ذئب اللهب",
+    "NameEn": "Flame Wolf",
+    "Aliases": [
+      "الذئب",
+      "ديب",
+      "wolf"
+    ],
+    "Type": "Creature",
+    "Faction": "Flame",
+    "Cost": 1,
+    "Attack": 700,
+    "Defense": 300,
+    "Effects": [],
+    "TextAr": "وحش صغير وسريع الاستدعاء.",
+    "ModelId": "flame_wolf"
+  },
+  {
+    "Id": "storm_crow",
+    "NameAr": "غراب العاصفة",
+    "NameEn": "Storm Crow",
+    "Aliases": [
+      "الغراب",
+      "غراب",
+      "crow"
+    ],
+    "Type": "Creature",
+    "Faction": "Storm",
+    "Cost": 2,
+    "Attack": 900,
+    "Defense": 500,
+    "Effects": [
+      {
+        "Kind": "Haste",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يقدر يهاجم في نفس الدور اللي اتحط فيه.",
+    "ModelId": "storm_crow"
+  },
+  {
+    "Id": "thunder_falcon",
+    "NameAr": "صقر الرعد",
+    "NameEn": "Thunder Falcon",
+    "Aliases": [
+      "الصقر",
+      "صقر",
+      "falcon"
+    ],
+    "Type": "Creature",
+    "Faction": "Storm",
+    "Cost": 4,
+    "Attack": 1700,
+    "Defense": 1000,
+    "Effects": [
+      {
+        "Kind": "Haste",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يقدر يهاجم في نفس الدور اللي اتحط فيه.",
+    "ModelId": "thunder_falcon"
+  },
+  {
+    "Id": "deep_crocodile",
+    "NameAr": "تمساح الأعماق",
+    "NameEn": "Deep Crocodile",
+    "Aliases": [
+      "التمساح",
+      "تمساح",
+      "crocodile",
+      "croc"
+    ],
+    "Type": "Creature",
+    "Faction": "Tide",
+    "Cost": 3,
+    "Attack": 1600,
+    "Defense": 1300,
+    "Effects": [
+      {
+        "Kind": "FreezeOnSummon",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "لما يتحط، يجمّد أقوى وحش عند الخصم لدور واحد.",
+    "ModelId": "deep_crocodile"
+  },
+  {
+    "Id": "river_serpent",
+    "NameAr": "ثعبان النهر",
+    "NameEn": "River Serpent",
+    "Aliases": [
+      "الثعبان",
+      "التعبان",
+      "ثعبان",
+      "serpent"
+    ],
+    "Type": "Creature",
+    "Faction": "Tide",
+    "Cost": 5,
+    "Attack": 2300,
+    "Defense": 2100,
+    "Effects": [],
+    "TextAr": "حارس الأعماق العملاق.",
+    "ModelId": "river_serpent"
+  },
+  {
+    "Id": "stone_pup",
+    "NameAr": "جرو الصخر",
+    "NameEn": "Stone Pup",
+    "Aliases": [
+      "الجرو",
+      "جرو",
+      "pup"
+    ],
+    "Type": "Creature",
+    "Faction": "Stone",
+    "Cost": 1,
+    "Attack": 400,
+    "Defense": 1200,
+    "Effects": [],
+    "TextAr": "صغير بس صلب.",
+    "ModelId": "stone_pup"
+  },
+  {
+    "Id": "sphinx_guardian",
+    "NameAr": "أبو الهول الحارس",
+    "NameEn": "Sphinx Guardian",
+    "Aliases": [
+      "أبو الهول",
+      "ابو الهول",
+      "الحارس",
+      "sphinx"
+    ],
+    "Type": "Creature",
+    "Faction": "Stone",
+    "Cost": 4,
+    "Attack": 1400,
+    "Defense": 2600,
+    "Effects": [
+      {
+        "Kind": "ProtectedOnSummon",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "محدش يقدر يهاجمه في دور الخصم اللي بعد ما اتحط.",
+    "ModelId": "sphinx_guardian"
+  },
+  {
+    "Id": "granite_golem",
+    "NameAr": "عملاق الجرانيت",
+    "NameEn": "Granite Golem",
+    "Aliases": [
+      "العملاق",
+      "عملاق",
+      "جولم",
+      "golem"
+    ],
+    "Type": "Creature",
+    "Faction": "Stone",
+    "Cost": 6,
+    "Attack": 2600,
+    "Defense": 2900,
+    "Effects": [],
+    "TextAr": "أقوى حارس في الوادي.",
+    "ModelId": "granite_golem"
+  },
+  {
+    "Id": "night_specter",
+    "NameAr": "شبح الليل",
+    "NameEn": "Night Specter",
+    "Aliases": [
+      "الشبح",
+      "شبح",
+      "specter",
+      "ghost"
+    ],
+    "Type": "Creature",
+    "Faction": "Shadow",
+    "Cost": 3,
+    "Attack": 1400,
+    "Defense": 1100,
+    "Effects": [
+      {
+        "Kind": "ProtectedOnSummon",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "محدش يقدر يهاجمه في دور الخصم اللي بعد ما اتحط.",
+    "ModelId": "night_specter"
+  },
+  {
+    "Id": "umbra_lord",
+    "NameAr": "سيد الظلال",
+    "NameEn": "Umbra Lord",
+    "Aliases": [
+      "سيد الظل",
+      "الظلال",
+      "umbra"
+    ],
+    "Type": "Creature",
+    "Faction": "Shadow",
+    "Cost": 6,
+    "Attack": 2600,
+    "Defense": 1800,
+    "Effects": [
+      {
+        "Kind": "BonusDamageOnKill",
+        "Amount": 400,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "لما يدمّر وحش في معركة، الخصم يخسر 400 نقطة زيادة.",
+    "ModelId": "umbra_lord"
+  },
+  {
+    "Id": "arena_quake",
+    "NameAr": "زلزال الساحة",
+    "NameEn": "Arena Quake",
+    "Aliases": [
+      "زلزال",
+      "quake"
+    ],
+    "Type": "Spell",
+    "Faction": "Stone",
+    "Cost": 3,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "DestroyAllDefenseBelow",
+        "Amount": 1000,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يدمّر كل الوحوش (عندك وعند الخصم) اللي دفاعها أقل من 1000.",
+    "ModelId": "arena_quake"
+  },
+  {
+    "Id": "shard_meteor",
+    "NameAr": "نيزك الشظايا",
+    "NameEn": "Shard Meteor",
+    "Aliases": [
+      "نيزك",
+      "meteor"
+    ],
+    "Type": "Spell",
+    "Faction": "None",
+    "Cost": 5,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "DestroyTargetCreature",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يدمّر وحش واحد عند الخصم.",
+    "ModelId": "shard_meteor"
+  },
+  {
+    "Id": "battle_cry",
+    "NameAr": "صيحة المعركة",
+    "NameEn": "Battle Cry",
+    "Aliases": [
+      "صيحة",
+      "cry"
+    ],
+    "Type": "Spell",
+    "Faction": "Flame",
+    "Cost": 1,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "BuffAttack",
+        "Amount": 700,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "وحش من وحوشك ياخد +700 هجوم لحد آخر الدور.",
+    "ModelId": "battle_cry"
+  },
+  {
+    "Id": "shadow_return",
+    "NameAr": "عودة الظل",
+    "NameEn": "Shadow Return",
+    "Aliases": [
+      "عودة",
+      "return"
+    ],
+    "Type": "Spell",
+    "Faction": "Shadow",
+    "Cost": 3,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "Revive",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يرجّع آخر وحش اتدمّر عندك للساحة.",
+    "ModelId": "shadow_return"
+  },
+  {
+    "Id": "shard_crystal",
+    "NameAr": "بلورة الطاقة",
+    "NameEn": "Energy Crystal",
+    "Aliases": [
+      "بلورة",
+      "crystal"
+    ],
+    "Type": "Spell",
+    "Faction": "None",
+    "Cost": 2,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "DrawCards",
+        "Amount": 2,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "اسحب كارتين.",
+    "ModelId": "shard_crystal"
+  },
+  {
+    "Id": "fire_meteor",
+    "NameAr": "شهاب النار",
+    "NameEn": "Fire Comet",
+    "Aliases": [
+      "شهاب",
+      "comet"
+    ],
+    "Type": "Spell",
+    "Faction": "Flame",
+    "Cost": 3,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "DamageOpponent",
+        "Amount": 500,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "الخصم يخسر 500 نقطة حياة.",
+    "ModelId": "fire_meteor"
+  },
+  {
+    "Id": "river_curse",
+    "NameAr": "لعنة النهر",
+    "NameEn": "River Curse",
+    "Aliases": [
+      "لعنة",
+      "curse"
+    ],
+    "Type": "Spell",
+    "Faction": "Tide",
+    "Cost": 2,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "FreezeTarget",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يجمّد وحش عند الخصم لدور واحد.",
+    "ModelId": "river_curse"
+  },
+  {
+    "Id": "shadow_mirror",
+    "NameAr": "مرآة الظل",
+    "NameEn": "Shadow Mirror",
+    "Aliases": [
+      "مرآة",
+      "مرايه",
+      "mirror"
+    ],
+    "Type": "Trap",
+    "Faction": "Shadow",
+    "Cost": 2,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "ReflectAttack",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "فخ: لما الخصم يهاجم، الهجوم يتلغي ويخسر نص قوة الوحش المهاجم.",
+    "ModelId": "shadow_mirror"
+  },
+  {
+    "Id": "granite_shield",
+    "NameAr": "درع الجرانيت",
+    "NameEn": "Granite Shield",
+    "Aliases": [
+      "درع",
+      "shield"
+    ],
+    "Type": "Trap",
+    "Faction": "Stone",
+    "Cost": 2,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "FortifyDefender",
+        "Amount": 1000,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "فخ: لما وحشك يتهاجم، يتحول لوضع الدفاع وياخد +1000 دفاع.",
+    "ModelId": "granite_shield"
+  },
+  {
+    "Id": "whirlpool",
+    "NameAr": "دوامة النهر",
+    "NameEn": "River Whirlpool",
+    "Aliases": [
+      "دوامة",
+      "whirlpool"
+    ],
+    "Type": "Trap",
+    "Faction": "Tide",
+    "Cost": 3,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "WhirlpoolTrap",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "فخ: لما الخصم يهاجم، الهجوم يتلغي والوحش المهاجم يتجمّد.",
+    "ModelId": "whirlpool"
+  },
+  {
+    "Id": "sunset_oasis",
+    "NameAr": "واحة الغروب",
+    "NameEn": "Sunset Oasis",
+    "Aliases": [
+      "واحة",
+      "الصحراء",
+      "oasis"
+    ],
+    "Type": "Field",
+    "Faction": "Flame",
+    "Cost": 4,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "FactionBoost",
+        "Amount": 300,
+        "Faction": "Flame"
+      }
+    ],
+    "TextAr": "الترابيزة كلها تتحول لصحراء. وحوش اللهب (عند الاتنين) تاخد +300 هجوم.",
+    "ModelId": "field_desert"
+  },
+  {
+    "Id": "flooded_valley",
+    "NameAr": "الوادي الغارق",
+    "NameEn": "Flooded Valley",
+    "Aliases": [
+      "الوادي",
+      "valley"
+    ],
+    "Type": "Field",
+    "Faction": "Tide",
+    "Cost": 4,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "FactionBoost",
+        "Amount": 400,
+        "Faction": "Tide"
+      }
+    ],
+    "TextAr": "الترابيزة تغرق في المية. وحوش النهر (عند الاتنين) تاخد +400 هجوم.",
+    "ModelId": "field_river"
+  }
+]
