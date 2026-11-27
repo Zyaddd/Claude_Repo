@@ -75,6 +75,22 @@ namespace Binders.Core
         public CreatureState FindCreature(int instanceId) =>
             Players.SelectMany(p => p.LivingCreatures).FirstOrDefault(c => c.InstanceId == instanceId);
 
+        /// <summary>Finds any card in the match by instance id, wherever it is.</summary>
+        public CardInstance FindCard(int instanceId)
+        {
+            if (Field != null && Field.Card.InstanceId == instanceId) return Field.Card;
+            foreach (var p in Players)
+            {
+                var c = p.LivingCreatures.FirstOrDefault(x => x.InstanceId == instanceId)?.Card
+                     ?? p.Supports.FirstOrDefault(x => x != null && x.InstanceId == instanceId)
+                     ?? p.Hand.FirstOrDefault(x => x.InstanceId == instanceId)
+                     ?? p.Graveyard.FirstOrDefault(x => x.InstanceId == instanceId)
+                     ?? p.Deck.FirstOrDefault(x => x.InstanceId == instanceId);
+                if (c != null) return c;
+            }
+            return null;
+        }
+
         public int EffectiveAttack(CreatureState c)
         {
             int atk = c.Def.Attack + c.TempAttack;
