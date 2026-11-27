@@ -5,7 +5,7 @@ using System.Text;
 
 namespace StoneRift.Core
 {
-    public enum VoiceIntent { Unknown, Attack, ToAttackPosition, ToGuardPosition, EndTurn }
+    public enum VoiceIntent { Unknown, Attack, ToAttackPosition, ToGuardPosition, EndTurn, Summon, UseTechnique, SetTrap, PlayField }
 
     public sealed class VoiceCommand
     {
@@ -13,6 +13,9 @@ namespace StoneRift.Core
         public CreatureState Actor;
         public CreatureState Target;
         public bool Direct;
+        /// <summary>The card from the hand to play (summon, technique, trap or field).</summary>
+        public CardInstance HandCard;
+        public Position SummonPosition = Position.Attack;
         /// <summary>Why the command could not be turned into an action, for the on-screen hint.</summary>
         public string Problem;
 
@@ -29,6 +32,14 @@ namespace StoneRift.Core
                     return new ChangePosition { Player = player, CreatureId = Actor.InstanceId, To = Position.Attack };
                 case VoiceIntent.ToGuardPosition when Actor != null:
                     return new ChangePosition { Player = player, CreatureId = Actor.InstanceId, To = Position.Guard };
+                case VoiceIntent.Summon when HandCard != null:
+                    return new SummonCreature { Player = player, CardId = HandCard.InstanceId, Position = SummonPosition };
+                case VoiceIntent.UseTechnique when HandCard != null && (Target != null || !Game.TechniqueNeedsTarget(HandCard.Def)):
+                    return new UseTechnique { Player = player, CardId = HandCard.InstanceId, TargetId = Target?.InstanceId };
+                case VoiceIntent.SetTrap when HandCard != null:
+                    return new SetTrap { Player = player, CardId = HandCard.InstanceId };
+                case VoiceIntent.PlayField when HandCard != null:
+                    return new PlayField { Player = player, CardId = HandCard.InstanceId };
                 default:
                     return null;
             }
@@ -46,6 +57,8 @@ namespace StoneRift.Core
         static readonly string[] GuardWords = { "دفاع", "دافع", "احمي", "احم", "اتحامي", "defend", "defense", "guard" };
         static readonly string[] PositionWords = { "وضع", "وضعيه", "حاله", "تحول", "اتحول", "حول", "تحويل", "mode", "position", "switch" };
         static readonly string[] DirectWords = { "مباشر", "مباشره", "لاعب", "خصم", "عدو", "direct", "player", "opponent" };
+        static readonly string[] PlayWords = { "انزل", "نزل", "نزلي", "استدعي", "استدعاء", "اطلع", "طلع", "اظهر", "العب", "حط", "استخدم", "شغل", "فعل", "جهز", "summon", "play", "use", "call", "set" };
+        static readonly string[] TrapWords = { "فخ", "trap" };
         static readonly string[] Fillers = { "يا", "ايها", "على", "علي", "عل", "الى", "الي", "لـ", "the", "on", "to", "at", "and", "و", "قم", "ب", "يلا", "go" };
 
         /// <summary>Lower-case, no diacritics, unified alef/yaa/taa marbuta, punctuation removed.</summary>
@@ -104,6 +117,9 @@ namespace StoneRift.Core
             int guardAt = IndexOfAny(tokens, GuardWords);
             bool positionPhrase = IndexOfAny(tokens, PositionWords) >= 0;
 
+            var handPlay = ParseHandPlay(game, player, tokens, attackAt, guardAt);
+            if (handPlay != null) return handPlay;
+
             int actionAt;
             if (guardAt >= 0 && (attackAt < 0 || positionPhrase && guardAt >= 0))
             {
@@ -158,6 +174,79 @@ namespace StoneRift.Core
             return Problem(cmd, "تهاجم مين؟ قول اسم كائن الخصم");
         }
 
+        /// <summary>
+        /// Commands that play a card from the hand: "انزل يا ماجرون"، "استخدم شعاع النواة على تيتانوكس"،
+        /// "حط مرآة البلور"، "العب قلب البركان". Returns null when the sentence is about creatures on the table.
+        /// </summary>
+        static VoiceCommand ParseHandPlay(Game game, int player, List<string> tokens, int attackAt, int guardAt)
+        {
+            var me = game.Players[player];
+            var foe = game.Opponent(player);
+            bool playVerb = tokens.Any(t => PlayWords.Contains(t));
+            bool boardVerb = attackAt >= 0 || guardAt >= 0;
+
+            var inHand = FindNameMentions(tokens, me.Hand, c => c.Def).OrderBy(m => m.Index).ThenBy(m => m.Distance).ToList();
+            var onBoard = FindMentions(tokens, me.LivingCreatures);
+
+            foreach (var m in inHand)
+            {
+                var card = m.Item;
+                var cmd = new VoiceCommand { HandCard = card };
+                switch (card.Def.Type)
+                {
+                    case CardType.Creature:
+                        // "ماجرون اهجم" means the one on the table if there is one; "انزل يا ماجرون" means the one in hand.
+                        bool alsoOnBoard = onBoard.Any(b => b.Creature.Def.Id == card.Def.Id);
+                        if (!playVerb && (alsoOnBoard || attackAt >= 0)) continue;
+                        cmd.Intent = VoiceIntent.Summon;
+                        cmd.SummonPosition = guardAt >= 0 ? Position.Guard : Position.Attack;
+                        return cmd;
+
+                    case CardType.Trap:
+                        cmd.Intent = VoiceIntent.SetTrap;
+                        return cmd;
+
+                    case CardType.Field:
+                        cmd.Intent = VoiceIntent.PlayField;
+                        return cmd;
+
+                    case CardType.Technique:
+                        cmd.Intent = VoiceIntent.UseTechnique;
+                        if (!Game.TechniqueNeedsTarget(card.Def)) return cmd;
+                        var side = Game.TechniqueTargetsEnemy(card.Def) ? foe : me;
+                        var nameEnd = m.Index + m.Length;
+                        cmd.Target = FindMentions(tokens, side.LivingCreatures)
+                            .Where(t => t.Index >= nameEnd || t.Index + 1 <= m.Index)
+                            .OrderBy(t => t.Index >= nameEnd ? 0 : 1).ThenBy(t => t.Distance)
+                            .Select(t => t.Creature).FirstOrDefault();
+                        if (cmd.Target == null)
+                        {
+                            var options = side.LivingCreatures.ToList();
+                            if (options.Count == 1) cmd.Target = options[0];
+                            else return Problem(cmd, options.Count == 0 ? "مفيش هدف للتقنية دي" : "تستخدمها على مين؟ قول اسم الكائن");
+                        }
+                        return cmd;
+                }
+            }
+
+            // "حط الفخ" with a single trap in hand needs no name.
+            if (tokens.Any(t => TrapWords.Contains(t)))
+            {
+                var traps = me.Hand.Where(c => c.Def.Type == CardType.Trap).ToList();
+                if (traps.Count == 1) return new VoiceCommand { Intent = VoiceIntent.SetTrap, HandCard = traps[0] };
+                return Problem(new VoiceCommand { Intent = VoiceIntent.SetTrap },
+                    traps.Count == 0 ? "مفيش فخ في إيدك" : "أنهي فخ؟ قول اسمه");
+            }
+
+            if (playVerb && !boardVerb)
+            {
+                var creatures = me.Hand.Where(c => c.Def.Type == CardType.Creature).ToList();
+                return Problem(new VoiceCommand { Intent = VoiceIntent.Summon },
+                    creatures.Count == 0 ? "مفيش كائنات في إيدك" : "أنهي كارت؟ قول اسمه");
+            }
+            return null;
+        }
+
         static bool CanAttackNow(Game g, CreatureState c) =>
             g.Validate(new Attack { Player = c.Owner, AttackerId = c.InstanceId, TargetId = null }) is var e &&
             e != ActionError.InGuardPosition && e != ActionError.Frozen && e != ActionError.AlreadyAttacked &&
@@ -177,14 +266,23 @@ namespace StoneRift.Core
 
         struct Mention { public CreatureState Creature; public int Index; public int Distance; }
 
+        struct NameMention<T> { public T Item; public int Index; public int Length; public int Distance; }
+
         /// <summary>Finds where each creature's name (or alias) is said, allowing small spelling slips.</summary>
-        static List<Mention> FindMentions(List<string> tokens, IEnumerable<CreatureState> creatures)
+        static List<Mention> FindMentions(List<string> tokens, IEnumerable<CreatureState> creatures) =>
+            FindNameMentions(tokens, creatures, c => c.Def)
+                .Select(m => new Mention { Creature = m.Item, Index = m.Index, Distance = m.Distance }).ToList();
+
+        static List<NameMention<T>> FindNameMentions<T>(List<string> tokens, IEnumerable<T> items, Func<T, CardDefinition> def)
         {
-            var found = new List<Mention>();
-            foreach (var c in creatures)
+            var found = new List<NameMention<T>>();
+            var seenDefs = new HashSet<string>();
+            foreach (var item in items)
             {
-                Mention? best = null;
-                foreach (var name in c.Def.SpokenNames())
+                var d = def(item);
+                if (!seenDefs.Add(d.Id) && typeof(T) == typeof(CardInstance)) continue; // Copies in hand: the first is enough.
+                NameMention<T>? best = null;
+                foreach (var name in d.SpokenNames())
                 {
                     var nameTokens = Tokens(name).Where(t => !Fillers.Contains(t)).ToList();
                     if (nameTokens.Count == 0) continue;
@@ -192,9 +290,9 @@ namespace StoneRift.Core
                     for (int i = 0; i + nameTokens.Count <= tokens.Count; i++)
                     {
                         string window = string.Join(" ", tokens.Skip(i).Take(nameTokens.Count));
-                        int d = Levenshtein(joined, window);
-                        if (d <= Allowed(joined.Length) && (best == null || d < best.Value.Distance))
-                            best = new Mention { Creature = c, Index = i, Distance = d };
+                        int dist = Levenshtein(joined, window);
+                        if (dist <= Allowed(joined.Length) && (best == null || dist < best.Value.Distance))
+                            best = new NameMention<T> { Item = item, Index = i, Length = nameTokens.Count, Distance = dist };
                     }
                 }
                 if (best != null) found.Add(best.Value);

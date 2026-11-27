@@ -48,7 +48,7 @@ namespace StoneRift.App
             _whisper.translateToEnglish = false;
             _whisper.noContext = true;
             _whisper.singleSegment = true;
-            _whisper.initialPrompt = "أوامر لعبة: اهجم، هجوم، دفاع، وضع الهجوم، وضع الدفاع، انهي الدور. "
+            _whisper.initialPrompt = "أوامر لعبة: انزل، استدعي، استخدم، حط الفخ، العب، اهجم، هجوم، دفاع، وضع الهجوم، وضع الدفاع، انهي الدور. "
                                      + string.Join("، ", vocabulary.Distinct().Take(60)) + ".";
             go.SetActive(true);
             Status = "بجهّز التعرف على الصوت…";

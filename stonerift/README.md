@@ -35,7 +35,7 @@ stonerift/
 │   │   ├── Net/               اللعب الجماعي: الاتصال، واكتشاف الماتشات، والمزامنة
 │   │   ├── package.json       ده بيخلّي الفولدر Unity package جاهز
 │   │   └── StoneRift.Core.asmdef
-│   └── StoneRift.Core.Tests/  82 اختبار، منهم 400 ماتش بين بوتين
+│   └── StoneRift.Core.Tests/  103 اختبار، منهم 400 ماتش بين بوتين
 ├── unity/                     مشروع Unity 6 (Android + ARCore)
 │   ├── Assets/StoneRift/Scripts/   اللعبة: الـ AR والحلبة والكائنات والتأثيرات والواجهة والصوت
 │   ├── Assets/StoneRift/Editor/    سكربت البناء: بيظبط إعدادات أندرويد و ARCore بالكود

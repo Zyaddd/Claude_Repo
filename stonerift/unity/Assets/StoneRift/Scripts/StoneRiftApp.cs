@@ -62,8 +62,7 @@ namespace StoneRift.App
             try { _db = LoadDatabase(); }
             catch (System.Exception e) { _loadError = e.Message; Debug.LogException(e); }
             if (_db != null)
-                _voice.Init(_db.Cards.Where(c => c.Type == CardType.Creature)
-                    .SelectMany(c => c.SpokenNames()).Where(ArabicShaper.HasArabic));
+                _voice.Init(_db.Cards.SelectMany(c => c.SpokenNames()).Where(ArabicShaper.HasArabic));
 
             _rig = ArRig.Create();
             var arenaRoot = new GameObject("Arena Root").transform;
