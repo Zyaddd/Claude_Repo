@@ -27,6 +27,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.produceState
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -92,7 +97,9 @@ fun PlayerScreen(
     val castDevice by vm.cast.deviceName.collectAsState()
     val showOptions by vm.showOptions.collectAsState()
     val channel = state.channel ?: return
-    var controls by remember { mutableStateOf(true) }
+    // The player only reports changes, so start from "hidden" (starting from "shown" left the
+    // top bar stuck on screen when the controls never appeared).
+    var controls by remember { mutableStateOf(false) }
     var resizeIndex by remember { mutableIntStateOf(0) }
     val landscape = LocalConfiguration.current.screenWidthDp > LocalConfiguration.current.screenHeightDp
 
@@ -115,6 +122,8 @@ fun PlayerScreen(
                         setShowFastForwardButton(false)
                         setShowRewindButton(false)
                         controllerShowTimeoutMs = 4000
+                        // On TV, controls appear only when OK is pressed, not on every rebuffer.
+                        controllerAutoShow = !vm.isTv
                         setControllerVisibilityListener(
                             PlayerView.ControllerVisibilityListener { visibility ->
                                 val visible = visibility == View.VISIBLE
@@ -165,7 +174,12 @@ fun PlayerScreen(
         }
     }
 
+    val split by vm.split.collectAsState()
     when {
+        split && !inPip -> Row(Modifier.fillMaxSize().background(Color.Black)) {
+            VideoBox(Modifier.weight(1f).fillMaxHeight())
+            SecondPane(vm, Modifier.weight(1f).fillMaxHeight())
+        }
         fullscreen || inPip || vm.isTv -> VideoBox(Modifier.fillMaxSize())
         landscape -> Row(Modifier.fillMaxSize()) {
             VideoBox(Modifier.weight(0.62f).fillMaxHeight())
@@ -188,6 +202,49 @@ fun PlayerScreen(
             onOpenTvSheet = onOpenTvSheet,
             onDismiss = { vm.setShowOptions(false) },
         )
+    }
+}
+
+/** The second channel in split screen: no controls; select it to give it the sound. */
+@Composable
+private fun SecondPane(vm: AppViewModel, modifier: Modifier) {
+    val st by vm.second.state.collectAsState()
+    val soundHere by vm.secondAudio.collectAsState()
+    val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Box(modifier.background(Color.Black)) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    useController = false
+                    player = vm.second.player
+                    isFocusable = false
+                    setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                }
+            },
+            onRelease = { it.player = null },
+            modifier = Modifier.fillMaxSize(),
+        )
+        Surface(
+            onClick = { vm.setSecondAudio(!soundHere) },
+            interactionSource = source,
+            border = focusBorder(source),
+            color = Color(0xAA000000),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
+        ) {
+            Text(
+                (if (soundHere) "🔊 " else "🔇 ") + (st.channel?.let { vm.title(it) } ?: ""),
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
+        IconButton(onClick = { vm.closeSplit() }, modifier = Modifier.align(Alignment.TopEnd)) {
+            Icon(androidx.compose.material.icons.Icons.Filled.Close, stringResource(R.string.close_second), tint = Color.White)
+        }
+        st.error?.let {
+            Text(stringResource(R.string.stream_failed), color = Color.White, modifier = Modifier.align(Alignment.Center))
+        }
     }
 }
 
@@ -217,7 +274,10 @@ private fun PlayerOverlays(
     val number by vm.numberEntry.collectAsState()
     val (nowP, nextP) = com.arabtv.iptv.data.GuideRepository.nowAndNext(guide[channel.id])
     Box(Modifier.fillMaxSize()) {
-        if (controls || osd || error != null) {
+        // TV: the bar is only the 2-second channel banner. Phone: it also carries Back/Cast/Options,
+        // so it follows the player controls.
+        val showBar = osd || error != null || (!vm.isTv && controls)
+        if (showBar) {
             Row(
                 Modifier.fillMaxWidth()
                     .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xCC000000), Color.Transparent)))
@@ -270,7 +330,7 @@ private fun PlayerOverlays(
                         Icon(Icons.Filled.MoreVert, stringResource(R.string.options), tint = Color.White)
                     }
                 }
-                if (vm.isTv && controls) {
+                if (vm.isTv && osd) {
                     Text(
                         stringResource(R.string.tv_hint),
                         color = Color(0xFFB0BAC5),
@@ -279,6 +339,23 @@ private fun PlayerOverlays(
                     )
                 }
             }
+        }
+
+        // "Go live" after pausing or rewinding a live channel.
+        val behind by produceState(false, channel.id) {
+            while (true) {
+                val p = vm.playback.player
+                value = p.isCurrentMediaItemLive && p.currentLiveOffset != androidx.media3.common.C.TIME_UNSET &&
+                    p.currentLiveOffset > 20_000
+                kotlinx.coroutines.delay(1000)
+            }
+        }
+        if (behind && error == null && castDevice == null) {
+            androidx.compose.material3.Button(
+                onClick = { vm.goLive() },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = LiveRed, contentColor = Color.White),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 84.dp),
+            ) { Text(stringResource(R.string.go_live)) }
         }
 
         if (number.isNotEmpty()) {
@@ -464,6 +541,21 @@ private fun PlayerOptionsDialog(
                         }
                         FocusAnchor(firstFocus)
                     }
+                    "split" -> {
+                        Text(
+                            stringResource(R.string.two_channels_help),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        val all by vm.catalog.collectAsState()
+                        val choices = remember(all) { all.filter { it.id != channel.id && it.playableSources.isNotEmpty() }.take(200) }
+                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp)) {
+                            items(choices, key = { it.id }) { ch ->
+                                ChannelRow(ch, vm.title(ch), false, null) { vm.openSplit(ch) }
+                            }
+                        }
+                        FocusAnchor(firstFocus)
+                    }
                     "sleep" -> {
                         MenuItem(stringResource(R.string.sleep_off)) { vm.setSleepTimer(null); onDismiss() }
                         listOf(15, 30, 60, 90, 120).forEach { m ->
@@ -510,6 +602,27 @@ private fun PlayerOptionsDialog(
                                 OptionButton(R.drawable.ic_tv, stringResource(R.string.send_to_tv), Modifier.weight(1f)) {
                                     onDismiss(); onOpenTvSheet(channel)
                                 }
+                            }
+                        }
+                        Spacer(Modifier.size(4.dp))
+                        val activity = LocalContext.current as? MainActivity
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            OptionButton(R.drawable.ic_play, stringResource(R.string.go_live), Modifier.weight(1f)) {
+                                vm.goLive(); onDismiss()
+                            }
+                            if (activity?.supportsPip() == true) {
+                                OptionButton(R.drawable.ic_aspect, stringResource(R.string.pip), Modifier.weight(1f)) {
+                                    onDismiss(); activity.enterPipNow()
+                                }
+                            }
+                            OptionButton(R.drawable.ic_tv, stringResource(R.string.mini_player), Modifier.weight(1f)) {
+                                vm.minimize()
+                            }
+                            OptionButton(Icons.Filled.Add, stringResource(R.string.two_channels), Modifier.weight(1f)) {
+                                page = "split"
+                            }
+                            OptionButton(Icons.Filled.Warning, stringResource(R.string.report_problem), Modifier.weight(1f)) {
+                                vm.reportChannel(channel); onDismiss()
                             }
                         }
                         Spacer(Modifier.size(8.dp))

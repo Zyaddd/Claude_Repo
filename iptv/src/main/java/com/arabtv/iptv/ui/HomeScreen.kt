@@ -106,6 +106,7 @@ fun sectionLabel(s: Section): String = stringResource(
         Section.DOCUMENTARY -> R.string.tab_documentary
         Section.KIDS -> R.string.tab_kids
         Section.QURAN -> R.string.tab_quran
+        Section.GUIDE -> R.string.nav_guide
         Section.LIBRARY -> R.string.nav_library
         Section.MY_LIST -> R.string.nav_my_list
         Section.ALL -> R.string.tab_all
@@ -143,7 +144,7 @@ fun HomeScreen(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit, onRequestPin
     var menuFor by remember { mutableStateOf<Channel?>(null) }
     val now = rememberMinute()
 
-    val locked = settings.kidsMode && !kidsUnlocked
+    val locked = settings.kidsLocked && !kidsUnlocked
     val sections = if (locked) {
         listOf(Section.KIDS, Section.QURAN, Section.LIBRARY)
     } else {
@@ -151,7 +152,7 @@ fun HomeScreen(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit, onRequestPin
             addAll(
                 listOf(
                     Section.HOME, Section.NEWS, Section.DOCUMENTARY, Section.KIDS, Section.QURAN,
-                    Section.LIBRARY, Section.MY_LIST, Section.ALL,
+                    Section.GUIDE, Section.LIBRARY, Section.MY_LIST, Section.ALL,
                 ),
             )
             if (settings.playlists.isNotEmpty()) add(Section.PLAYLISTS)
@@ -179,6 +180,7 @@ fun HomeScreen(vm: AppViewModel, onOpenTvSheet: (Channel?) -> Unit, onRequestPin
                 all.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = Gold)
                 current == Section.HOME -> HomeFeed(vm, tile)
                 current == Section.LIBRARY -> LibraryPage(vm)
+                current == Section.GUIDE -> GuideGrid(vm, tile)
                 current == Section.SEARCH -> SearchPage(vm, tile)
                 else -> ChannelGrid(
                     vm = vm,
@@ -292,6 +294,8 @@ private fun TopBar(
                 }
                 if (vm.cast.castContext != null) CastButton(Modifier.size(48.dp))
             }
+            val st by vm.settings.collectAsState()
+            IconButton(onClick = { vm.showProfilePicker() }) { ProfileAvatar(st.profile, 30.dp) }
             if (locked) {
                 IconButton(onClick = { onRequestPin(false) }) { Icon(Icons.Filled.Lock, stringResource(R.string.kids_unlock)) }
             } else {
@@ -382,7 +386,10 @@ private fun HomeFeed(vm: AppViewModel, tile: TileActions) {
     val tileWidth = if (vm.isTv) 210.dp else 156.dp
     val focusHero: (Channel) -> (() -> Unit) = { ch -> { userMoved = true; heroId = ch.id } }
 
+    val ramadan = vm.ramadanActive(s)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
+        item(key = "prayers") { PrayerBar(vm) }
+        if (ramadan) item(key = "ramadan") { RamadanBanner(vm) }
         if (hero != null) item(key = "hero") { Hero(vm, hero, tile) }
         if (pending.isNotEmpty()) {
             item(key = "pending") { NewChannelsBanner(pending.size) { vm.showPendingChannels() } }
@@ -393,14 +400,16 @@ private fun HomeFeed(vm: AppViewModel, tile: TileActions) {
                 ShelfRow(title(), list.take(40), tileWidth, tile, focusHero)
             }
         }
+        // In Ramadan, Taraweeh and Quran lead.
+        if (ramadan) row("quran", { stringResource(R.string.tab_quran) }, quran)
         row("recent", { stringResource(R.string.row_continue) }, recents)
         row("mylist", { stringResource(R.string.nav_my_list) }, favorites)
         row("news", { stringResource(R.string.tab_news) }, news)
         row("docs", { stringResource(R.string.tab_documentary) }, docs)
         row("kids", { stringResource(R.string.tab_kids) }, kids)
-        row("quran", { stringResource(R.string.tab_quran) }, quran)
+        if (!ramadan) row("quran", { stringResource(R.string.tab_quran) }, quran)
         val lib = vm.librarySections.firstOrNull()
-        if (lib != null && !s.kidsMode) {
+        if (lib != null && !s.kidsLocked) {
             item(key = "library") {
                 LibraryRow(lib.title(vm.isArabicUi()), lib.items, vm) { vm.openLibraryItem(it) }
             }

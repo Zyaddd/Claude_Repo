@@ -41,6 +41,11 @@ import com.arabtv.iptv.BuildConfigInfo
 import com.arabtv.iptv.R
 import com.arabtv.iptv.data.Pairing
 import com.arabtv.iptv.data.Prefs
+import com.arabtv.iptv.prayer.Prayers
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import androidx.compose.foundation.layout.height
 
 @Composable
 fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
@@ -51,6 +56,7 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
     val everything by vm.allChannels.collectAsState()
     val finding by vm.finding.collectAsState()
     val pending by vm.pendingChannels.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var dialog by remember { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize()) {
@@ -104,6 +110,61 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
                     ActionRow(stringResource(R.string.relay_server), s.relayServer) { dialog = "relay" }
                 }
             }
+
+            // ---- Prayer times ----
+            item { Header(stringResource(R.string.sec_prayer)) }
+            item {
+                ActionRow(stringResource(R.string.prayer_city), Prayers.city(s.prayerCity).name(vm.isArabicUi())) { dialog = "city" }
+            }
+            item {
+                ActionRow(
+                    stringResource(R.string.adhan_alert),
+                    stringResource(
+                        when (s.adhanAlert) {
+                            "off" -> R.string.adhan_off
+                            "auto" -> R.string.adhan_auto
+                            else -> R.string.adhan_ask
+                        },
+                    ),
+                ) { dialog = "adhan" }
+            }
+            item {
+                ActionRow(
+                    stringResource(R.string.ramadan_mode),
+                    stringResource(
+                        when (s.ramadanMode) {
+                            "on" -> R.string.mode_on
+                            "off" -> R.string.mode_off
+                            else -> R.string.ramadan_auto
+                        },
+                    ),
+                ) { dialog = "ramadan" }
+            }
+            item {
+                SwitchRow(stringResource(R.string.show_prayer_bar), null, s.showPrayerBar) { on ->
+                    vm.updateSettings { it.copy(showPrayerBar = on) }
+                }
+            }
+
+            // ---- Profiles ----
+            item { Header(stringResource(R.string.sec_profiles)) }
+            s.profiles.forEach { p ->
+                item(key = "profile:" + p.id) {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        ProfileAvatar(p, 36.dp)
+                        Spacer(Modifier.size(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(profileName(p) + if (p.id == s.currentProfile) "  ✓" else "")
+                            if (p.kids) Text(stringResource(R.string.kids_profile), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (p.id != com.arabtv.iptv.data.Prefs.MAIN_PROFILE && p.id != s.currentProfile) {
+                            IconButton(onClick = { vm.deleteProfile(p.id) }) { Icon(Icons.Filled.Delete, stringResource(R.string.remove)) }
+                        }
+                    }
+                }
+            }
+            item { ActionRow(stringResource(R.string.add_profile), stringResource(R.string.add_profile_help)) { dialog = "addProfile" } }
+            item { ActionRow(stringResource(R.string.switch_profile), null) { vm.showProfilePicker() } }
 
             // ---- Channels ----
             item { Header(stringResource(R.string.sec_channels)) }
@@ -183,6 +244,27 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
                 }
             }
             item { ActionRow(stringResource(R.string.check_now), null) { vm.checkStreams() } }
+            item {
+                ActionRow(
+                    stringResource(R.string.reported_channels),
+                    stringResource(R.string.reported_count, s.reports.size),
+                ) { dialog = "reports" }
+            }
+            if (vm.isTv) {
+                item {
+                    SwitchRow(stringResource(R.string.start_on_boot), stringResource(R.string.start_on_boot_help), s.startOnBoot) { on ->
+                        vm.updateSettings { it.copy(startOnBoot = on) }
+                        if (on && Build.VERSION.SDK_INT >= 29 && !android.provider.Settings.canDrawOverlays(context)) {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             // ---- Playlists ----
             item { Header(stringResource(R.string.sec_playlists)) }
@@ -324,6 +406,66 @@ fun SettingsScreen(vm: AppViewModel, onRequestPin: (disable: Boolean) -> Unit) {
             },
             confirmButton = {},
         )
+        "city" -> androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dialog = null },
+            title = { Text(stringResource(R.string.prayer_city)) },
+            text = {
+                LazyColumn(Modifier.height(380.dp)) {
+                    items(Prayers.CITIES.size) { i ->
+                        val c = Prayers.CITIES[i]
+                        MenuItem((if (c.id == s.prayerCity) "✓ " else "") + c.name(vm.isArabicUi())) {
+                            vm.setPrayerCity(c.id); dialog = null
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+        )
+        "adhan" -> ChoiceDialog(
+            stringResource(R.string.adhan_alert),
+            listOf("off" to R.string.adhan_off, "ask" to R.string.adhan_ask, "auto" to R.string.adhan_auto),
+            s.adhanAlert,
+            onDismiss = { dialog = null },
+        ) { v -> vm.updateSettings { it.copy(adhanAlert = v) } }
+        "ramadan" -> ChoiceDialog(
+            stringResource(R.string.ramadan_mode),
+            listOf("auto" to R.string.ramadan_auto, "on" to R.string.mode_on, "off" to R.string.mode_off),
+            s.ramadanMode,
+            onDismiss = { dialog = null },
+        ) { v -> vm.updateSettings { it.copy(ramadanMode = v) } }
+        "addProfile" -> AddProfileDialog(vm) { dialog = null }
+        "reports" -> androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dialog = null },
+            title = { Text(stringResource(R.string.reported_channels)) },
+            text = {
+                if (s.reports.isEmpty()) {
+                    Text(stringResource(R.string.reported_none))
+                } else {
+                    LazyColumn(Modifier.height(320.dp)) {
+                        items(s.reports.size) { i ->
+                            val r = s.reports[i]
+                            Text(r.name, modifier = Modifier.padding(vertical = 4.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (s.reports.isNotEmpty()) {
+                    androidx.compose.material3.TextButton(onClick = {
+                        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, vm.reportsText())
+                        runCatching { context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    }) { Text(stringResource(R.string.share)) }
+                }
+            },
+            dismissButton = {
+                Row {
+                    if (s.reports.isNotEmpty()) {
+                        androidx.compose.material3.TextButton(onClick = { vm.clearReports() }) { Text(stringResource(R.string.clear)) }
+                    }
+                    androidx.compose.material3.TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.ok)) }
+                }
+            },
+        )
         "language" -> androidx.compose.material3.AlertDialog(
             onDismissRequest = { dialog = null },
             title = { Text(stringResource(R.string.language)) },
@@ -353,6 +495,28 @@ private fun currentLanguageLabel(): String {
         locales[0]?.language == "ar" -> "العربية"
         else -> "English"
     }
+}
+
+@Composable
+private fun ChoiceDialog(
+    title: String,
+    options: List<Pair<String, Int>>,
+    current: String,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                options.forEach { (value, label) ->
+                    MenuItem((if (value == current) "✓ " else "") + stringResource(label)) { onPick(value); onDismiss() }
+                }
+            }
+        },
+        confirmButton = {},
+    )
 }
 
 @Composable

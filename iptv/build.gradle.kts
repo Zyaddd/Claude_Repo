@@ -90,6 +90,8 @@ dependencies {
     implementation("androidx.mediarouter:mediarouter:1.7.0")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("com.batoulapps.adhan:adhan:1.2.1")
+    implementation("androidx.tvprovider:tvprovider:1.0.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

@@ -14,6 +14,11 @@ import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import android.content.Intent
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -53,6 +58,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        handleLink(intent)
         setContent {
             ArabTvTheme {
                 AppRoot()
@@ -101,6 +107,7 @@ class MainActivity : AppCompatActivity() {
                     UiMessage.NoChannelNumber -> context.getString(R.string.msg_no_number)
                     UiMessage.NoNewChannels -> context.getString(R.string.msg_no_new_channels)
                     is UiMessage.ChannelsAdded -> context.getString(R.string.msg_channels_added, m.count)
+                    UiMessage.ReportSaved -> context.getString(R.string.msg_report_saved)
                 }
                 snackbar.showSnackbar(text)
             }
@@ -143,6 +150,23 @@ class MainActivity : AppCompatActivity() {
 
         if (tvSheetOpen) TvSheet(vm, tvSheetFor) { tvSheetOpen = false; tvSheetFor = null }
 
+        val mini by vm.mini.collectAsState()
+        if (mini && screen != Screen.PLAYER && !inPip) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                MiniPlayer(vm, Modifier.align(Alignment.BottomEnd).padding(20.dp))
+            }
+        }
+
+        val prayer by vm.prayerAlert.collectAsState()
+        prayer?.let { PrayerAlertDialog(vm, it) }
+
+        val choosing by vm.choosingProfile.collectAsState()
+        if (choosing) {
+            val st by vm.settings.collectAsState()
+            BackHandler { vm.chooseProfile(st.currentProfile) }
+            ProfilePicker(vm)
+        }
+
         val newChannels by vm.newChannelsDialog.collectAsState()
         newChannels?.let { NewChannelsDialog(vm, it) }
 
@@ -159,6 +183,28 @@ class MainActivity : AppCompatActivity() {
                 onDismiss = { pinRequest = null },
                 onConfirm = { v -> if (vm.unlockKids(v[0].trim(), disable)) pinRequest = null },
             )
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleLink(intent)
+    }
+
+    /** arabtv://play/<channel id> from the TV home screen row. */
+    private fun handleLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "arabtv" || uri.host != "play") return
+        val id = uri.pathSegments.firstOrNull() ?: return
+        lifecycleScope.launch {
+            // The channel list may still be loading right after the app starts.
+            repeat(20) {
+                if (vm.catalog.value.isNotEmpty()) {
+                    vm.playById(id)
+                    return@launch
+                }
+                kotlinx.coroutines.delay(500)
+            }
         }
     }
 
@@ -208,6 +254,16 @@ class MainActivity : AppCompatActivity() {
         if (!isChangingConfigurations) vm.stopReceiver()
     }
 
+    fun supportsPip(): Boolean =
+        packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+    /** Picture-in-picture on request (TV and phone): the channel keeps playing in a corner. */
+    fun enterPipNow() {
+        if (!supportsPip()) return
+        runCatching { enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build()) }
+    }
+
+    /** Automatic picture-in-picture when leaving the app: phones only (on TV, Home should mean Home). */
     private fun canPip(): Boolean =
         !vm.isTv && vm.screen.value == Screen.PLAYER && vm.cast.deviceName.value == null &&
             vm.playback.state.value.channel != null && vm.playback.state.value.error == null &&
@@ -246,7 +302,7 @@ class MainActivity : AppCompatActivity() {
             in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9 -> event.keyCode - KeyEvent.KEYCODE_NUMPAD_0
             else -> -1
         }
-        val typing = vm.screen.value == Screen.SETTINGS ||
+        val typing = vm.choosingProfile.value || vm.screen.value == Screen.SETTINGS ||
             (vm.screen.value == Screen.HOME && vm.section.value == Section.SEARCH)
         if (digit >= 0 && !typing) {
             if (event.action == KeyEvent.ACTION_DOWN) vm.typeDigit(digit)
@@ -268,7 +324,10 @@ class MainActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_DPAD_DOWN -> if (!controls && vm.isTv && !hasError()) {
                 if (down) vm.zap(-1); return true
             }
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> if (!controls && vm.isTv && !hasError()) {
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> if (!controls && vm.isTv && vm.split.value) {
+                // Split screen: left/right moves the sound to the other channel.
+                if (down) vm.setSecondAudio(!vm.secondAudio.value); return true
+            } else if (!controls && vm.isTv && !hasError()) {
                 if (down) vm.setShowOptions(true); return true
             }
             KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_INFO, KeyEvent.KEYCODE_GUIDE -> {

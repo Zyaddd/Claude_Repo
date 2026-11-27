@@ -84,6 +84,26 @@ downloads the new APK and asks Android to install it. Two conditions:
 The first build with the permanent key needs a one-time uninstall of the old app; after that,
 updates install over it with favorites and settings kept.
 
+## Prayer, Ramadan and family
+
+- **Prayer times** on Home for your city (Umm al-Qura and each country's official method). At adhan
+  time the app offers Al-Haram live, or switches to it (Settings → Prayer times).
+- **Ramadan mode** (automatic by the Hijri calendar): iftar / suhoor countdown, Taraweeh from Makkah,
+  Quran row first.
+- **Profiles**: "Who's watching?", each with its own My List, history and link choices; kids
+  profiles see only cartoons, Quran and the library.
+
+## Watching
+
+- Picture-in-picture (TV and phone), "keep watching in corner" while browsing, and two channels
+  side by side (◀▶ moves the sound).
+- Pause a live channel and continue (as far back as the stream keeps), with "Go live".
+- Programme guide grid (next 3 hours).
+- Android TV home-screen row with your favorites; "Start with the TV" (Android may ask to allow
+  "Display over other apps").
+- Report a problem: remembered in Settings → Reported channels (shareable), and the channel's
+  links are checked again right away. The sleep timer fades the sound out over the last minute.
+
 ## Other features
 
 Netflix / Apple TV-style home (hero banner, rows, focus animations, Tajawal font), My List with

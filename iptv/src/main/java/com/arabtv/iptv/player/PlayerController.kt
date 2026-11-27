@@ -195,13 +195,13 @@ class PlayerController(context: Context, private val scope: CoroutineScope) {
         return next
     }
 
+    /**
+     * Pause / resume. Live channels resume where they were paused (as far back as the stream keeps,
+     * often 30 seconds to a few minutes); "Go live" jumps to the live edge. If the stream no
+     * longer has that point, playback restarts at live by itself (BEHIND_LIVE_WINDOW).
+     */
     fun togglePause() {
-        if (player.isPlaying) player.pause()
-        else {
-            // Live: jump back to the live edge after a pause instead of playing stale video.
-            if (player.isCurrentMediaItemLive) player.seekToDefaultPosition()
-            player.play()
-        }
+        if (player.isPlaying) player.pause() else player.play()
     }
 
     fun stop() {
