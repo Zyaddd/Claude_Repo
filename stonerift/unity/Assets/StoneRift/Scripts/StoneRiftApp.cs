@@ -19,7 +19,7 @@ namespace StoneRift.App
             if (FindAnyObjectByType<StoneRiftApp>() == null) new GameObject("StoneRift").AddComponent<StoneRiftApp>();
         }
 
-        enum Mode { Menu, Lobby, Playing }
+        enum Mode { Menu, Lobby, Decks, Playing }
 
         ArRig _rig;
         ArenaPlacer _placer;
@@ -61,6 +61,7 @@ namespace StoneRift.App
 
             try { _db = LoadDatabase(); }
             catch (System.Exception e) { _loadError = e.Message; Debug.LogException(e); }
+            if (_db != null) LoadCustomDecks();
             if (_db != null)
                 _voice.Init(_db.Cards.SelectMany(c => c.SpokenNames()).Where(ArabicShaper.HasArabic));
 
@@ -89,9 +90,10 @@ namespace StoneRift.App
 
         void StartMatch()
         {
-            string botDeck = _playerDeck == "magma_volt" ? "crystal_tide" : "magma_volt";
+            var playerDeck = ResolveDeck(_playerDeck);
+            string botDeck = BotDeckFor(playerDeck);
             int seed = System.Environment.TickCount;
-            _game = Game.Create(_db.Expand(_db.GetDeck(_playerDeck)), _db.Expand(_db.GetDeck(botDeck)), seed,
+            _game = Game.Create(_db.Expand(playerDeck), _db.Expand(_db.GetDeck(botDeck)), seed,
                 name0: "أنت", name1: "الكمبيوتر");
             _bot = Bots.Create(_botLevel, seed ^ 0x5bd1);
             BeginPlaying();
@@ -358,6 +360,7 @@ namespace StoneRift.App
             }
             if (_mode == Mode.Menu) { DrawMenu(); return; }
             if (_mode == Mode.Lobby) { DrawLobby(); return; }
+            if (_mode == Mode.Decks) { DrawDeckBuilder(); return; }
             if (!_placer.Placed) { DrawPlacement(); return; }
 
             DrawTopBar();
@@ -371,28 +374,24 @@ namespace StoneRift.App
         {
             float w = Mathf.Min(VW - 40, 520), x = (VW - w) / 2;
             GUI.Box(new Rect(0, 0, VW, VirtualHeight), GUIContent.none, _box);
-            GUI.Label(new Rect(x, 90, w, 60), "STONERIFT", _big);
-            GUI.Label(new Rect(x, 150, w, 40), T("ستون ريفت: صدع الحجر"), _big);
-            GUI.Label(new Rect(x, 230, w, 40), T("اختار الديك بتاعك:"), _label);
+            GUI.Label(new Rect(x, 40, w, 60), "STONERIFT", _big);
+            GUI.Label(new Rect(x, 100, w, 40), T("ستون ريفت: صدع الحجر"), _big);
+            GUI.Label(new Rect(x, 160, w, 40), T("اختار الديك بتاعك:"), _label);
+            float y = 205 + DrawDeckChooser(x, 205, w) + 8;
 
-            string[] decks = { "magma_volt", "crystal_tide" };
-            for (int i = 0; i < decks.Length; i++)
-            {
-                var d = _db.GetDeck(decks[i]);
-                GUI.backgroundColor = _playerDeck == d.Id ? new Color(1f, 0.8f, 0.3f) : Color.white;
-                if (GUI.Button(new Rect(x, 280 + i * 90, w, 75), T(d.NameAr), _button)) _playerDeck = d.Id;
-            }
             string[] levels = { "سهل", "عادي", "صعب" };
             float lw = w / 3f;
             for (int i = 0; i < 3; i++)
             {
                 GUI.backgroundColor = (int)_botLevel == i ? new Color(1f, 0.8f, 0.3f) : Color.white;
-                if (GUI.Button(new Rect(x + i * lw, 470, lw - 6, 45), T(levels[i]), _button)) _botLevel = (BotLevel)i;
+                if (GUI.Button(new Rect(x + i * lw, y, lw - 6, 45), T(levels[i]), _button)) _botLevel = (BotLevel)i;
             }
+            y += 52;
             GUI.backgroundColor = new Color(0.4f, 1f, 0.5f);
-            if (GUI.Button(new Rect(x, 520, w, 70), T("ماتش ضد الكمبيوتر"), _button)) StartMatch();
+            if (GUI.Button(new Rect(x, y, w, 70), T("ماتش ضد الكمبيوتر"), _button)) StartMatch();
+            y += 82;
             GUI.backgroundColor = new Color(0.45f, 0.8f, 1f);
-            if (GUI.Button(new Rect(x, 610, w, 80), T("العب مع صاحبك (نفس الواي فاي)"), _button)) OpenLobby();
+            if (GUI.Button(new Rect(x, y, w, 75), T("العب مع صاحبك (نفس الواي فاي)"), _button)) OpenLobby();
             GUI.backgroundColor = Color.white;
         }
 

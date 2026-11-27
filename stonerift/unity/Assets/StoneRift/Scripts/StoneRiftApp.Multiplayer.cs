@@ -33,7 +33,7 @@ namespace StoneRift.App
 
         const string NameKey = "player_name";
 
-        Dictionary<string, int> DeckCards(string id) => new Dictionary<string, int>(_db.GetDeck(id).Cards);
+        Dictionary<string, int> DeckCards(string id) => new Dictionary<string, int>(ResolveDeck(id).Cards);
 
         void OpenLobby()
         {
@@ -215,7 +215,7 @@ namespace StoneRift.App
             GUI.Label(new Rect(x, y, w * 0.35f, 50), T("اسمك:"), _label);
             _playerName = GUI.TextField(new Rect(x + w * 0.35f, y, w * 0.65f, 50), _playerName ?? "", 20, _button);
             y += 60;
-            GUI.Label(new Rect(x, y, w, 40), T("الديك: " + _db.GetDeck(_playerDeck).NameAr), _label);
+            GUI.Label(new Rect(x, y, w, 40), T("الديك: " + ResolveDeck(_playerDeck).NameAr), _label);
             y += 55;
 
             bool hosting = _session != null && _session.IsHost;
