@@ -1,5 +1,6 @@
 package com.arabtv.iptv.tv
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -23,7 +24,13 @@ object HomeChannels {
 
     fun playUri(channelId: String): Uri = Uri.parse("arabtv://play/" + Uri.encode(channelId))
 
-    /** Replaces the row's programs with [channels] (at most 20). Safe to call on non-TV devices. */
+    /**
+     * Replaces the row's programs with [channels] (at most 20). Safe to call on non-TV devices.
+     * RestrictedApi is suppressed because tvprovider 1.0.0 marks its own public builder methods
+     * (setType, setTitle, ...) as library-internal through their generic base class; they are the
+     * documented way to publish programs.
+     */
+    @SuppressLint("RestrictedApi")
     fun sync(context: Context, channels: List<Channel>, title: (Channel) -> String) {
         try {
             val helper = PreviewChannelHelper(context)

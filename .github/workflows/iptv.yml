@@ -85,7 +85,13 @@ jobs:
           ./gradlew :iptv:testDebugUnitTest --no-daemon
 
       - name: Lint (errors fail the build)
-        run: ./gradlew :iptv:lintRelease --no-daemon
+        run: |
+          ./gradlew :iptv:lintRelease --no-daemon || {
+            echo "::group::Full lint report"
+            cat iptv/build/intermediates/lint_intermediate_text_report/release/lintReportRelease/lint-results-release.txt || true
+            echo "::endgroup::"
+            exit 1
+          }
 
       - name: Upload lint report
         if: always()
