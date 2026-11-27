@@ -6,7 +6,7 @@ namespace StoneRift.Core
     /// A plain greedy opponent: plays its strongest affordable cards, then makes the attacks that win trades.
     /// Used for the practice mode and for balance simulations.
     /// </summary>
-    public sealed class SimpleBot
+    public sealed class SimpleBot : IBot
     {
         readonly DeterministicRandom _rng;
 

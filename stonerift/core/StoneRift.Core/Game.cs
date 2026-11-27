@@ -536,6 +536,48 @@ namespace StoneRift.Core
         // ------------------------------------------------------------------ helpers for UI and bots
 
         /// <summary>
+        /// An independent copy of the match, for the computer player to try moves on without touching the real one.
+        /// Card instances are shared (they never change); everything that can change is copied.
+        /// </summary>
+        public Game Clone()
+        {
+            var g = new Game(Config, 1);
+            g._rng.CopyFrom(_rng);
+            g._nextInstanceId = _nextInstanceId;
+            g.ActivePlayer = ActivePlayer;
+            g.TurnNumber = TurnNumber;
+            g.Phase = Phase;
+            g.Winner = Winner;
+            g.Field = Field == null ? null : new FieldState { Card = Field.Card };
+            for (int p = 0; p < 2; p++)
+            {
+                var src = Players[p];
+                var dst = new PlayerState
+                {
+                    Index = src.Index, Name = src.Name, Life = src.Life, Energy = src.Energy, MaxEnergy = src.MaxEnergy,
+                    Deck = new List<CardInstance>(src.Deck),
+                    Hand = new List<CardInstance>(src.Hand),
+                    Graveyard = new List<CardInstance>(src.Graveyard),
+                    Supports = (CardInstance[])src.Supports.Clone(),
+                };
+                for (int i = 0; i < src.Creatures.Length; i++)
+                {
+                    var c = src.Creatures[i];
+                    if (c == null) continue;
+                    dst.Creatures[i] = new CreatureState
+                    {
+                        Card = c.Card, Slot = c.Slot, Position = c.Position, SummonedTurn = c.SummonedTurn,
+                        HasAttacked = c.HasAttacked, ChangedPosition = c.ChangedPosition,
+                        FrozenThroughTurn = c.FrozenThroughTurn, ProtectedThroughTurn = c.ProtectedThroughTurn,
+                        TempAttack = c.TempAttack, TempDefense = c.TempDefense,
+                    };
+                }
+                g.Players[p] = dst;
+            }
+            return g;
+        }
+
+        /// <summary>
         /// Fingerprint of everything that matters in the match. Two phones playing the same match
         /// compare it after every action to catch any difference early.
         /// </summary>

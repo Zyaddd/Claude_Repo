@@ -14,6 +14,8 @@ namespace StoneRift.Core
             if (_state == 0) _state = 0x9E3779B9;
         }
 
+        public void CopyFrom(DeterministicRandom other) => _state = other._state;
+
         public uint NextUInt()
         {
             uint x = _state;

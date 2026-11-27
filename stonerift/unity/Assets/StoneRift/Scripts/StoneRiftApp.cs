@@ -27,7 +27,8 @@ namespace StoneRift.App
         VoiceInput _voice;
         CardDatabase _db;
         Game _game;
-        SimpleBot _bot;
+        IBot _bot;
+        BotLevel _botLevel = BotLevel.Normal;
         Mode _mode = Mode.Menu;
         string _playerDeck = "magma_volt";
 
@@ -93,7 +94,7 @@ namespace StoneRift.App
             int seed = System.Environment.TickCount;
             _game = Game.Create(_db.Expand(_db.GetDeck(_playerDeck)), _db.Expand(_db.GetDeck(botDeck)), seed,
                 name0: "أنت", name1: "الكمبيوتر");
-            _bot = new SimpleBot(seed ^ 0x5bd1);
+            _bot = Bots.Create(_botLevel, seed ^ 0x5bd1);
             BeginPlaying();
             Say(_game.ActivePlayer == Me ? "العملة وقعت لصالحك، ابدأ!" : "الكمبيوتر هيبدأ");
         }
@@ -382,10 +383,17 @@ namespace StoneRift.App
                 GUI.backgroundColor = _playerDeck == d.Id ? new Color(1f, 0.8f, 0.3f) : Color.white;
                 if (GUI.Button(new Rect(x, 280 + i * 90, w, 75), T(d.NameAr), _button)) _playerDeck = d.Id;
             }
+            string[] levels = { "سهل", "عادي", "صعب" };
+            float lw = w / 3f;
+            for (int i = 0; i < 3; i++)
+            {
+                GUI.backgroundColor = (int)_botLevel == i ? new Color(1f, 0.8f, 0.3f) : Color.white;
+                if (GUI.Button(new Rect(x + i * lw, 470, lw - 6, 45), T(levels[i]), _button)) _botLevel = (BotLevel)i;
+            }
             GUI.backgroundColor = new Color(0.4f, 1f, 0.5f);
-            if (GUI.Button(new Rect(x, 480, w, 85), T("ماتش ضد الكمبيوتر"), _button)) StartMatch();
+            if (GUI.Button(new Rect(x, 520, w, 70), T("ماتش ضد الكمبيوتر"), _button)) StartMatch();
             GUI.backgroundColor = new Color(0.45f, 0.8f, 1f);
-            if (GUI.Button(new Rect(x, 580, w, 85), T("العب مع صاحبك (نفس الواي فاي)"), _button)) OpenLobby();
+            if (GUI.Button(new Rect(x, 610, w, 80), T("العب مع صاحبك (نفس الواي فاي)"), _button)) OpenLobby();
             GUI.backgroundColor = Color.white;
         }
 
