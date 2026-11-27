@@ -9,10 +9,11 @@ captures/
 *.jks
 *.keystore
 
-# BINDERS game
-binders/core/.build/
-binders/**/Library/
-binders/**/Temp/
-binders/**/Logs/
-binders/**/UserSettings/
-!binders/unity/beta-signing.keystore
+# StoneRift game
+stonerift/core/.build/
+stonerift/**/Library/
+stonerift/**/Temp/
+stonerift/**/Logs/
+stonerift/**/UserSettings/
+!stonerift/unity/beta-signing.keystore
+stonerift/unity/Assets/StreamingAssets/Whisper/

@@ -1,0 +1,529 @@
+[
+  {
+    "Id": "magron",
+    "NameAr": "ماجرون، تنين الحمم",
+    "NameEn": "Magron, Lava Wyrm",
+    "Aliases": [
+      "ماجرون",
+      "تنين الحمم",
+      "التنين",
+      "magron"
+    ],
+    "Type": "Creature",
+    "Faction": "Magma",
+    "Cost": 5,
+    "Attack": 2400,
+    "Defense": 1600,
+    "Effects": [
+      {
+        "Kind": "BonusDamageOnKill",
+        "Amount": 300,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "لما يدمّر كائن في معركة، الخصم يخسر 300 نقطة زيادة.",
+    "ModelId": "magron"
+  },
+  {
+    "Id": "ember_blade",
+    "NameAr": "شفرة الجمر",
+    "NameEn": "Ember Blade",
+    "Aliases": [
+      "الشفرة",
+      "شفره",
+      "blade"
+    ],
+    "Type": "Creature",
+    "Faction": "Magma",
+    "Cost": 2,
+    "Attack": 1000,
+    "Defense": 400,
+    "Effects": [
+      {
+        "Kind": "Haste",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "سريع: يقدر يهاجم في نفس الدور اللي نزل فيه.",
+    "ModelId": "ember_blade"
+  },
+  {
+    "Id": "wahaj",
+    "NameAr": "وَهَج",
+    "NameEn": "Wahaj",
+    "Aliases": [
+      "وهج",
+      "wahaj"
+    ],
+    "Type": "Creature",
+    "Faction": "Magma",
+    "Cost": 1,
+    "Attack": 700,
+    "Defense": 300,
+    "Effects": [],
+    "TextAr": "شرارة صغيرة بتنزل بسرعة.",
+    "ModelId": "wahaj"
+  },
+  {
+    "Id": "wameed",
+    "NameAr": "وميض",
+    "NameEn": "Wameed",
+    "Aliases": [
+      "وميض",
+      "wameed"
+    ],
+    "Type": "Creature",
+    "Faction": "Volt",
+    "Cost": 2,
+    "Attack": 900,
+    "Defense": 500,
+    "Effects": [
+      {
+        "Kind": "Haste",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "سريع: يقدر يهاجم في نفس الدور اللي نزل فيه.",
+    "ModelId": "wameed"
+  },
+  {
+    "Id": "voltix",
+    "NameAr": "فولتيكس",
+    "NameEn": "Voltix",
+    "Aliases": [
+      "فولتيكس",
+      "فولتكس",
+      "voltix"
+    ],
+    "Type": "Creature",
+    "Faction": "Volt",
+    "Cost": 4,
+    "Attack": 1700,
+    "Defense": 1000,
+    "Effects": [
+      {
+        "Kind": "Haste",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "سريع: يقدر يهاجم في نفس الدور اللي نزل فيه.",
+    "ModelId": "voltix"
+  },
+  {
+    "Id": "tayyar",
+    "NameAr": "تيّار",
+    "NameEn": "Tayyar",
+    "Aliases": [
+      "تيار",
+      "tayyar"
+    ],
+    "Type": "Creature",
+    "Faction": "Tide",
+    "Cost": 3,
+    "Attack": 1600,
+    "Defense": 1300,
+    "Effects": [
+      {
+        "Kind": "FreezeOnSummon",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "لما ينزل، يجمّد أقوى كائن عند الخصم لدور واحد.",
+    "ModelId": "tayyar"
+  },
+  {
+    "Id": "ubab",
+    "NameAr": "عُباب، عملاق المحيط",
+    "NameEn": "Ubab, Ocean Colossus",
+    "Aliases": [
+      "عباب",
+      "عملاق المحيط",
+      "ubab"
+    ],
+    "Type": "Creature",
+    "Faction": "Tide",
+    "Cost": 5,
+    "Attack": 2300,
+    "Defense": 2100,
+    "Effects": [],
+    "TextAr": "موجة عملاقة متجسّدة.",
+    "ModelId": "ubab"
+  },
+  {
+    "Id": "quarton",
+    "NameAr": "كوارتون",
+    "NameEn": "Quarton",
+    "Aliases": [
+      "كوارتون",
+      "كوارتز",
+      "quarton"
+    ],
+    "Type": "Creature",
+    "Faction": "Crystal",
+    "Cost": 1,
+    "Attack": 400,
+    "Defense": 1200,
+    "Effects": [],
+    "TextAr": "صغير بس دفاعه صلب.",
+    "ModelId": "quarton"
+  },
+  {
+    "Id": "mirror_warden",
+    "NameAr": "حارس المرايا",
+    "NameEn": "Mirror Warden",
+    "Aliases": [
+      "حارس المرايا",
+      "الحارس",
+      "warden"
+    ],
+    "Type": "Creature",
+    "Faction": "Crystal",
+    "Cost": 4,
+    "Attack": 1400,
+    "Defense": 2600,
+    "Effects": [
+      {
+        "Kind": "ProtectedOnSummon",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "محدش يقدر يهاجمه في دور الخصم اللي بعد ما نزل.",
+    "ModelId": "mirror_warden"
+  },
+  {
+    "Id": "titanox",
+    "NameAr": "تيتانوكس",
+    "NameEn": "Titanox",
+    "Aliases": [
+      "تيتانوكس",
+      "تيتان",
+      "titanox"
+    ],
+    "Type": "Creature",
+    "Faction": "Crystal",
+    "Cost": 6,
+    "Attack": 2600,
+    "Defense": 2900,
+    "Effects": [],
+    "TextAr": "أتقل كائن بلوري معروف.",
+    "ModelId": "titanox"
+  },
+  {
+    "Id": "madar",
+    "NameAr": "مدار",
+    "NameEn": "Madar",
+    "Aliases": [
+      "مدار",
+      "madar"
+    ],
+    "Type": "Creature",
+    "Faction": "Gravity",
+    "Cost": 3,
+    "Attack": 1400,
+    "Defense": 1100,
+    "Effects": [
+      {
+        "Kind": "ProtectedOnSummon",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "محدش يقدر يهاجمه في دور الخصم اللي بعد ما نزل.",
+    "ModelId": "madar"
+  },
+  {
+    "Id": "thiqal",
+    "NameAr": "ثِقَل، سيد الجاذبية",
+    "NameEn": "Thiqal, Gravity Sovereign",
+    "Aliases": [
+      "ثقل",
+      "سيد الجاذبية",
+      "thiqal"
+    ],
+    "Type": "Creature",
+    "Faction": "Gravity",
+    "Cost": 6,
+    "Attack": 2600,
+    "Defense": 1800,
+    "Effects": [
+      {
+        "Kind": "BonusDamageOnKill",
+        "Amount": 400,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "لما يدمّر كائن في معركة، الخصم يخسر 400 نقطة زيادة.",
+    "ModelId": "thiqal"
+  },
+  {
+    "Id": "gravity_wave",
+    "NameAr": "موجة الجاذبية",
+    "NameEn": "Gravity Wave",
+    "Aliases": [
+      "موجة"
+    ],
+    "Type": "Technique",
+    "Faction": "Gravity",
+    "Cost": 3,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "DestroyAllDefenseBelow",
+        "Amount": 1000,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "تدمّر كل الكائنات (عندك وعند الخصم) اللي دفاعها أقل من 1000.",
+    "ModelId": "gravity_wave"
+  },
+  {
+    "Id": "core_beam",
+    "NameAr": "شعاع النواة",
+    "NameEn": "Core Beam",
+    "Aliases": [
+      "شعاع"
+    ],
+    "Type": "Technique",
+    "Faction": "None",
+    "Cost": 5,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "DestroyTargetCreature",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يدمّر كائن واحد عند الخصم.",
+    "ModelId": "core_beam"
+  },
+  {
+    "Id": "overcharge",
+    "NameAr": "شحن زائد",
+    "NameEn": "Overcharge",
+    "Aliases": [
+      "شحن"
+    ],
+    "Type": "Technique",
+    "Faction": "Volt",
+    "Cost": 1,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "BuffAttack",
+        "Amount": 700,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "كائن من كائناتك ياخد +700 هجوم لحد آخر الدور.",
+    "ModelId": "overcharge"
+  },
+  {
+    "Id": "reforge",
+    "NameAr": "إعادة التشكيل",
+    "NameEn": "Reforge",
+    "Aliases": [
+      "اعادة",
+      "تشكيل"
+    ],
+    "Type": "Technique",
+    "Faction": "Crystal",
+    "Cost": 3,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "Revive",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يعيد تشكيل آخر كائن اتدمّر عندك ويرجّعه الحلبة.",
+    "ModelId": "reforge"
+  },
+  {
+    "Id": "energy_crystal",
+    "NameAr": "بلورة طاقة",
+    "NameEn": "Energy Crystal",
+    "Aliases": [
+      "بلورة"
+    ],
+    "Type": "Technique",
+    "Faction": "None",
+    "Cost": 2,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "DrawCards",
+        "Amount": 2,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "اسحب كارتين.",
+    "ModelId": "energy_crystal"
+  },
+  {
+    "Id": "lava_burst",
+    "NameAr": "انفجار حمم",
+    "NameEn": "Lava Burst",
+    "Aliases": [
+      "انفجار"
+    ],
+    "Type": "Technique",
+    "Faction": "Magma",
+    "Cost": 3,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "DamageOpponent",
+        "Amount": 500,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "الخصم يخسر 500 نقطة حياة.",
+    "ModelId": "lava_burst"
+  },
+  {
+    "Id": "deep_freeze",
+    "NameAr": "تجميد عميق",
+    "NameEn": "Deep Freeze",
+    "Aliases": [
+      "تجميد"
+    ],
+    "Type": "Technique",
+    "Faction": "Tide",
+    "Cost": 2,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "FreezeTarget",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "يجمّد كائن عند الخصم لدور واحد.",
+    "ModelId": "deep_freeze"
+  },
+  {
+    "Id": "crystal_mirror",
+    "NameAr": "مرآة البلور",
+    "NameEn": "Crystal Mirror",
+    "Aliases": [
+      "مرآة",
+      "مرايه"
+    ],
+    "Type": "Trap",
+    "Faction": "Crystal",
+    "Cost": 2,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "ReflectAttack",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "فخ: لما الخصم يهاجم، الهجوم يرتد ويخسر نص قوة الكائن المهاجم.",
+    "ModelId": "crystal_mirror"
+  },
+  {
+    "Id": "hex_shield",
+    "NameAr": "درع سداسي",
+    "NameEn": "Hex Shield",
+    "Aliases": [
+      "درع"
+    ],
+    "Type": "Trap",
+    "Faction": "Crystal",
+    "Cost": 2,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "FortifyDefender",
+        "Amount": 1000,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "فخ: لما كائنك يتهاجم، يتحول لوضع الدفاع وياخد +1000 دفاع.",
+    "ModelId": "hex_shield"
+  },
+  {
+    "Id": "ice_vortex",
+    "NameAr": "دوامة جليد",
+    "NameEn": "Ice Vortex",
+    "Aliases": [
+      "دوامة"
+    ],
+    "Type": "Trap",
+    "Faction": "Tide",
+    "Cost": 3,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "WhirlpoolTrap",
+        "Amount": 0,
+        "Faction": "None"
+      }
+    ],
+    "TextAr": "فخ: لما الخصم يهاجم، الهجوم يتلغي والكائن المهاجم يتجمّد.",
+    "ModelId": "ice_vortex"
+  },
+  {
+    "Id": "volcano_heart",
+    "NameAr": "قلب البركان",
+    "NameEn": "Volcano Heart",
+    "Aliases": [
+      "بركان"
+    ],
+    "Type": "Field",
+    "Faction": "Magma",
+    "Cost": 4,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "FactionBoost",
+        "Amount": 300,
+        "Faction": "Magma"
+      }
+    ],
+    "TextAr": "الحلبة كلها تتحول لأرض بركانية. كائنات الماجما (عند الاتنين) تاخد +300 هجوم.",
+    "ModelId": "volcano_heart"
+  },
+  {
+    "Id": "frozen_ocean",
+    "NameAr": "المحيط المتجمد",
+    "NameEn": "Frozen Ocean",
+    "Aliases": [
+      "المحيط"
+    ],
+    "Type": "Field",
+    "Faction": "Tide",
+    "Cost": 4,
+    "Attack": 0,
+    "Defense": 0,
+    "Effects": [
+      {
+        "Kind": "FactionBoost",
+        "Amount": 400,
+        "Faction": "Tide"
+      }
+    ],
+    "TextAr": "الحلبة تغرق في مية متجمدة. كائنات التيار (عند الاتنين) تاخد +400 هجوم.",
+    "ModelId": "frozen_ocean"
+  }
+]

@@ -1,0 +1,4 @@
+<!-- Keep the rules engine whole in IL2CPP builds: card data is read with reflection (Newtonsoft.Json). -->
+<linker>
+  <assembly fullname="StoneRift.Core" preserve="all" />
+</linker>

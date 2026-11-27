@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain .NET build of the rules engine, used for tests and simulations.
+       Unity ignores this file and compiles the same sources through StoneRift.Core.asmdef. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>StoneRift.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Data/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,22 @@
+name: StoneRift rules engine
+
+on:
+  push:
+    paths:
+      - "stonerift/core/**"
+      - ".github/workflows/stonerift-core.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Run rules, voice and simulation tests
+        working-directory: stonerift/core
+        run: dotnet test --logger "console;verbosity=normal"

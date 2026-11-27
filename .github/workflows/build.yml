@@ -3,10 +3,10 @@ name: Build APK
 on:
   push:
     branches: ["**"]
-    # The BINDERS game has its own workflows; its changes should not publish a widgets release.
+    # The StoneRift game has its own workflows; its changes should not publish a widgets release.
     paths-ignore:
-      - "binders/**"
-      - ".github/workflows/binders-*.yml"
+      - "stonerift/**"
+      - ".github/workflows/stonerift-*.yml"
   workflow_dispatch:
 
 permissions:

@@ -1,0 +1,10 @@
+{
+  "name": "com.stonerift.core",
+  "version": "0.1.0",
+  "displayName": "StoneRift Core",
+  "description": "Rules engine for StoneRift: cards, turns, battles and voice-command parsing. No Unity dependencies.",
+  "unity": "2022.3",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "Id": "magma_volt",
+    "NameAr": "شرارة الحمم",
+    "Cards": {
+      "magron": 3,
+      "ember_blade": 3,
+      "wahaj": 3,
+      "wameed": 3,
+      "voltix": 3,
+      "lava_burst": 2,
+      "overcharge": 3,
+      "energy_crystal": 2,
+      "gravity_wave": 1,
+      "core_beam": 2,
+      "crystal_mirror": 2,
+      "hex_shield": 1,
+      "volcano_heart": 2
+    }
+  },
+  {
+    "Id": "crystal_tide",
+    "NameAr": "حصن البلور",
+    "Cards": {
+      "mirror_warden": 3,
+      "titanox": 2,
+      "tayyar": 3,
+      "ubab": 2,
+      "madar": 3,
+      "thiqal": 2,
+      "quarton": 3,
+      "deep_freeze": 2,
+      "reforge": 1,
+      "energy_crystal": 1,
+      "gravity_wave": 1,
+      "ice_vortex": 2,
+      "hex_shield": 2,
+      "frozen_ocean": 2,
+      "core_beam": 1
+    }
+  }
+]

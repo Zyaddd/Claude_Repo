@@ -1,0 +1,112 @@
+name: StoneRift Android build
+
+on:
+  push:
+    paths:
+      - "stonerift/unity/**"
+      - "stonerift/core/StoneRift.Core/**"
+      - ".github/workflows/stonerift-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stonerift-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check Unity license secrets
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          missing=""
+          [ -z "$UNITY_LICENSE" ] && missing="$missing UNITY_LICENSE"
+          [ -z "$UNITY_EMAIL" ] && missing="$missing UNITY_EMAIL"
+          [ -z "$UNITY_PASSWORD" ] && missing="$missing UNITY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing. See stonerift/README.md (Unity license)."
+            exit 1
+          fi
+
+      - name: Free disk space for the Unity image
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
+      - uses: actions/checkout@v4
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: stonerift/unity/Library
+          key: Library-Android-${{ hashFiles('stonerift/unity/Packages/manifest.json', 'stonerift/unity/ProjectSettings/ProjectVersion.txt') }}-${{ hashFiles('stonerift/unity/Assets/**', 'stonerift/core/StoneRift.Core/**') }}
+          restore-keys: |
+            Library-Android-${{ hashFiles('stonerift/unity/Packages/manifest.json', 'stonerift/unity/ProjectSettings/ProjectVersion.txt') }}-
+            Library-Android-
+
+      # Offline speech recognition model (Whisper base, ~60 MB, MIT). Downloaded at build time, not kept in git.
+      - name: Cache Whisper model
+        uses: actions/cache@v4
+        with:
+          path: stonerift/unity/Assets/StreamingAssets/Whisper
+          key: whisper-ggml-base-q5_1
+
+      - name: Download Whisper model
+        run: |
+          dir=stonerift/unity/Assets/StreamingAssets/Whisper
+          mkdir -p "$dir"
+          f="$dir/ggml-base-q5_1.bin"
+          if [ ! -s "$f" ]; then
+            curl -L --fail --retry 3 -o "$f" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin
+          fi
+          ls -la "$dir"
+
+      - name: Build APK with Unity
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: stonerift/unity
+          targetPlatform: Android
+          buildName: StoneRift
+          buildMethod: StoneRift.EditorTools.BuildScript.BuildAndroid
+          versioning: Custom
+          version: 0.1.${{ github.run_number }}
+          androidVersionCode: ${{ github.run_number }}
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: StoneRift-apk
+          path: build/Android/*.apk
+          if-no-files-found: error
+
+      - name: Publish beta download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=$(ls build/Android/*.apk | head -1)
+          cp "$APK" StoneRift.apk
+          # One fixed tag, replaced on every build, so the download link never changes.
+          # Marked as pre-release and not "latest", so the widgets app keeps its own latest release.
+          gh release delete stonerift-beta --yes --cleanup-tag 2>/dev/null || true
+          gh release create stonerift-beta StoneRift.apk \
+            --target "${{ github.sha }}" \
+            --title "StoneRift beta 0.1.${{ github.run_number }}" \
+            --notes "نسخة تجريبية من ${{ github.sha }}. نزّل StoneRift.apk على موبايل أندرويد." \
+            --prerelease --latest=false
