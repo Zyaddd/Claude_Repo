@@ -122,6 +122,13 @@ namespace StoneRift.App
             _label.color = c.Owner == LocalPlayer ? new Color(0.85f, 1f, 0.85f) : new Color(1f, 0.85f, 0.85f);
         }
 
+        /// <summary>Label for a construct shown outside a match (the card scanner): name and printed stats.</summary>
+        public void ShowCardInfo()
+        {
+            _label.text = ArabicShaper.Fix(Def.NameAr.Split('،')[0]) + "\n" + $"<b><color=#ff9a5a>{Def.Attack}</color></b> / <color=#7ec8ff>{Def.Defense}</color>";
+            _label.color = Color.white;
+        }
+
         public void SetSelected(bool on)
         {
             _selected = on;

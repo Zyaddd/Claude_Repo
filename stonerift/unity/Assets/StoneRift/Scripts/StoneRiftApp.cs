@@ -19,7 +19,7 @@ namespace StoneRift.App
             if (FindAnyObjectByType<StoneRiftApp>() == null) new GameObject("StoneRift").AddComponent<StoneRiftApp>();
         }
 
-        enum Mode { Menu, Lobby, Decks, Playing }
+        enum Mode { Menu, Lobby, Decks, Scan, Playing }
 
         ArRig _rig;
         ArenaPlacer _placer;
@@ -119,6 +119,7 @@ namespace StoneRift.App
         void Update()
         {
             UpdateNetwork();
+            UpdateScanner();
             if (_mode != Mode.Playing || _game == null) return;
             if (!_placer.Placed)
             {
@@ -361,6 +362,7 @@ namespace StoneRift.App
             if (_mode == Mode.Menu) { DrawMenu(); return; }
             if (_mode == Mode.Lobby) { DrawLobby(); return; }
             if (_mode == Mode.Decks) { DrawDeckBuilder(); return; }
+            if (_mode == Mode.Scan) { DrawScanner(); return; }
             if (!_placer.Placed) { DrawPlacement(); return; }
 
             DrawTopBar();
@@ -392,6 +394,9 @@ namespace StoneRift.App
             y += 82;
             GUI.backgroundColor = new Color(0.45f, 0.8f, 1f);
             if (GUI.Button(new Rect(x, y, w, 75), T("العب مع صاحبك (نفس الواي فاي)"), _button)) OpenLobby();
+            y += 87;
+            GUI.backgroundColor = new Color(0.85f, 0.7f, 1f);
+            if (GUI.Button(new Rect(x, y, w, 60), T("جرّب الكروت المطبوعة"), _button)) OpenScanner();
             GUI.backgroundColor = Color.white;
         }
 

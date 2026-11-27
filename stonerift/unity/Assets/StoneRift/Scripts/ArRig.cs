@@ -18,6 +18,8 @@ namespace StoneRift.App
         public ARRaycastManager Raycaster { get; private set; }
         public ARPlaneManager Planes { get; private set; }
         public ARSession Session { get; private set; }
+        /// <summary>Recognises printed cards. Off until the scanner is opened.</summary>
+        public ARTrackedImageManager Images { get; private set; }
         /// <summary>True once we know AR works on this device.</summary>
         public bool ArReady { get; private set; }
         /// <summary>True when AR is not available and the board is shown in front of a fixed camera.</summary>
@@ -76,6 +78,8 @@ namespace StoneRift.App
             Planes.planePrefab = MakePlaneTemplate();
             Planes.requestedDetectionMode = PlaneDetectionMode.Horizontal;
             originGo.AddComponent<ARAnchorManager>();
+            Images = originGo.AddComponent<ARTrackedImageManager>();
+            Images.enabled = false;
 
             originGo.SetActive(true);
 
@@ -147,6 +151,7 @@ namespace StoneRift.App
             Session.enabled = false;
             Planes.enabled = false;
             Raycaster.enabled = false;
+            Images.enabled = false;
             var bg = Cam.GetComponent<ARCameraBackground>();
             if (bg) bg.enabled = false;
             var pose = Cam.GetComponent<TrackedPoseDriver>();
